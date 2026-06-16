@@ -1,8 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { loadValues, saveValues, EMPTY_VALUES } from "@/lib/teg-store";
-import { PARAM_META, type TegValues } from "@/lib/teg-algorithm";
+import {
+  PARAM_META,
+  validateAll,
+  type TegValues,
+  type ValueIssue,
+} from "@/lib/teg-algorithm";
 import { DisclaimerBanner } from "@/components/Disclaimer";
+
 
 export const Route = createFileRoute("/review")({
   head: () => ({
