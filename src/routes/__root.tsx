@@ -77,14 +77,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "Clot Clarity" },
+      { name: "description", content: "Clot Clarity interprets TEG 6 results from mobile camera images to recommend blood products." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "Clot Clarity" },
+      { property: "og:description", content: "Clot Clarity interprets TEG 6 results from mobile camera images to recommend blood products." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Clot Clarity" },
+      { name: "twitter:description", content: "Clot Clarity interprets TEG 6 results from mobile camera images to recommend blood products." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d1be7e76-d43e-4b13-b71f-fb34008649bb/id-preview-0a4fc92e--2eeb24de-fcdc-4308-81b7-39658bef0270.lovable.app-1781621358775.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d1be7e76-d43e-4b13-b71f-fb34008649bb/id-preview-0a4fc92e--2eeb24de-fcdc-4308-81b7-39658bef0270.lovable.app-1781621358775.png" },
     ],
     links: [
       {
