@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { PARAM_META, type TegValues } from "./teg-algorithm";
+
 
 const InputSchema = z.object({
   imageDataUrl: z
@@ -91,5 +93,19 @@ Respond ONLY with a JSON object matching this exact shape:
     if (!result.success) {
       throw new Error("Model returned an unexpected shape. Please enter values manually.");
     }
-    return result.data;
+    // Defensive scrub: any value the model returned that is outside the
+    // physiologically plausible range is almost certainly an OCR mistake.
+    // Null it out so the clinician must enter it manually rather than
+    // accidentally confirm a misread number.
+    const scrubbed = { ...result.data };
+    (Object.keys(PARAM_META) as (keyof TegValues)[]).forEach((k) => {
+      const val = scrubbed[k];
+      if (val === null || val === undefined) return;
+      const [lo, hi] = PARAM_META[k].plausible;
+      if (!Number.isFinite(val) || val < lo || val > hi) {
+        scrubbed[k] = null;
+      }
+    });
+    return scrubbed;
   });
+

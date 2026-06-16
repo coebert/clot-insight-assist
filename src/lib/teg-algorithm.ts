@@ -12,39 +12,111 @@ export type TegValues = {
 
 export const PARAM_META: Record<
   keyof TegValues,
-  { label: string; unit: string; normal: string; description: string }
+  {
+    label: string;
+    unit: string;
+    normal: string;
+    description: string;
+    // Physiologically plausible range — anything outside is almost certainly
+    // an OCR mistake or unit error and must be confirmed.
+    plausible: [number, number];
+  }
 > = {
   CK_R: {
     label: "CK.R",
     unit: "min",
     normal: "4.6 – 9.1",
     description: "Citrated Kaolin reaction time — clotting factor activity",
+    plausible: [0.5, 60],
   },
   CKH_R: {
     label: "CKH.R",
     unit: "min",
     normal: "4.6 – 9.1",
     description: "Kaolin + Heparinase R — compared to CK.R to detect heparin",
+    plausible: [0.5, 60],
   },
   CRT_MA: {
     label: "CRT.MA",
     unit: "mm",
     normal: "52 – 70",
     description: "RapidTEG maximum amplitude — overall clot strength (platelets)",
+    plausible: [0, 100],
   },
   CFF_MA: {
     label: "CFF.MA",
     unit: "mm",
     normal: "15 – 32",
     description: "Functional Fibrinogen MA — fibrinogen contribution",
+    plausible: [0, 60],
   },
   CK_LY30: {
     label: "CK.LY30",
     unit: "%",
     normal: "< 3",
     description: "Percent lysis at 30 minutes — fibrinolysis",
+    plausible: [0, 100],
   },
 };
+
+export type ValueIssue = {
+  key: keyof TegValues;
+  severity: "error" | "warning";
+  message: string;
+};
+
+// Per-field plausibility check. Returns null if the value is acceptable.
+// Missing values (null) are not issues here — they are handled separately
+// by the rule engine, which simply skips rules that need them.
+export function validateValue(
+  key: keyof TegValues,
+  value: number | null,
+): ValueIssue | null {
+  if (value === null) return null;
+  if (!Number.isFinite(value)) {
+    return { key, severity: "error", message: "Not a finite number." };
+  }
+  if (value < 0) {
+    return { key, severity: "error", message: "Negative value is not possible." };
+  }
+  const meta = PARAM_META[key];
+  const [lo, hi] = meta.plausible;
+  if (value < lo || value > hi) {
+    return {
+      key,
+      severity: "error",
+      message: `Outside plausible range (${lo}–${hi} ${meta.unit}). Likely OCR or unit error — please re-enter.`,
+    };
+  }
+  return null;
+}
+
+export function validateAll(v: TegValues): ValueIssue[] {
+  const issues: ValueIssue[] = [];
+  (Object.keys(PARAM_META) as (keyof TegValues)[]).forEach((k) => {
+    const i = validateValue(k, v[k]);
+    if (i) issues.push(i);
+  });
+
+  // Cross-field sanity: heparinase can only shorten R, never prolong it.
+  if (v.CK_R !== null && v.CKH_R !== null && v.CKH_R - v.CK_R > 2) {
+    issues.push({
+      key: "CKH_R",
+      severity: "warning",
+      message: `CKH.R (${v.CKH_R}) > CK.R (${v.CK_R}) — unexpected, please re-check.`,
+    });
+  }
+  // CFF.MA is a component of CRT.MA, so it should not exceed it.
+  if (v.CFF_MA !== null && v.CRT_MA !== null && v.CFF_MA > v.CRT_MA) {
+    issues.push({
+      key: "CFF_MA",
+      severity: "warning",
+      message: `CFF.MA (${v.CFF_MA}) exceeds CRT.MA (${v.CRT_MA}) — physiologically unexpected.`,
+    });
+  }
+  return issues;
+}
+
 
 export type Recommendation = {
   id: string;
