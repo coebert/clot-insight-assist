@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { PARAM_META, type TegValues } from "./teg-algorithm";
+
 
 const InputSchema = z.object({
   imageDataUrl: z
