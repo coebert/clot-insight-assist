@@ -1,0 +1,116 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import {
+  CITATION,
+  PARAM_META,
+  interpret,
+  type TegValues,
+} from "@/lib/teg-algorithm";
+import { clearValues, loadValues, EMPTY_VALUES } from "@/lib/teg-store";
+import { DisclaimerBanner } from "@/components/Disclaimer";
+
+export const Route = createFileRoute("/results")({
+  head: () => ({
+    meta: [
+      { title: "Recommendation — TEG 6s Advisor" },
+      {
+        name: "description",
+        content:
+          "Blood product recommendations derived from the entered TEG 6s parameters.",
+      },
+    ],
+  }),
+  component: Results,
+});
+
+function Results() {
+  const navigate = useNavigate();
+  const [values, setValues] = useState<TegValues>(EMPTY_VALUES);
+  useEffect(() => setValues(loadValues()), []);
+
+  const { recommendations, missing } = useMemo(() => interpret(values), [values]);
+
+  const startOver = () => {
+    clearValues();
+    navigate({ to: "/" });
+  };
+
+  return (
+    <main className="min-h-screen bg-background px-4 py-8 print:py-2">
+      <div className="mx-auto max-w-xl space-y-6">
+        <Link to="/review" className="text-sm text-muted-foreground underline print:hidden">
+          ← Edit values
+        </Link>
+        <h1 className="text-2xl font-bold tracking-tight">Recommendation</h1>
+        <DisclaimerBanner compact />
+
+        <section className="rounded-lg border bg-card p-4">
+          <h2 className="text-sm font-semibold">Entered values</h2>
+          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+            {(Object.keys(PARAM_META) as (keyof TegValues)[]).map((k) => (
+              <div key={k} className="flex justify-between gap-2 border-b border-border/50 py-1">
+                <dt className="text-muted-foreground">{PARAM_META[k].label}</dt>
+                <dd className="font-mono">
+                  {values[k] === null ? "—" : `${values[k]} ${PARAM_META[k].unit}`}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        {missing.length > 0 && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Missing values: {missing.map((k) => PARAM_META[k].label).join(", ")}.
+            Rules requiring these parameters were skipped.
+          </div>
+        )}
+
+        <section className="space-y-3">
+          {recommendations.map((r) => (
+            <article
+              key={r.id}
+              className={`rounded-lg border p-4 ${
+                r.severity === "action"
+                  ? "border-primary/30 bg-primary/5"
+                  : "border-border bg-card"
+              }`}
+            >
+              <header className="flex items-baseline justify-between gap-2">
+                <h3 className="font-semibold">{r.product}</h3>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {r.severity === "action" ? "Consider" : "Info"}
+                </span>
+              </header>
+              <p className="mt-1 text-sm font-medium">{r.finding}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Trigger: {r.trigger}</p>
+              {r.dose !== "—" && (
+                <p className="mt-2 text-sm">
+                  <span className="font-semibold">Suggested dose: </span>
+                  {r.dose}
+                </p>
+              )}
+              <p className="mt-2 text-xs text-muted-foreground">{r.rationale}</p>
+            </article>
+          ))}
+        </section>
+
+        <p className="text-xs text-muted-foreground">{CITATION}</p>
+
+        <div className="flex flex-col gap-2 print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="inline-flex w-full items-center justify-center rounded-md border border-input bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
+          >
+            Print / Save as PDF
+          </button>
+          <button
+            onClick={startOver}
+            className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Start over
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
