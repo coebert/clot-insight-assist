@@ -1,15 +1,21 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { loadValues, saveValues, EMPTY_VALUES } from "@/lib/teg-store";
 import {
-  PARAM_META,
+  loadPopulation,
+  loadValues,
+  savePopulation,
+  saveValues,
+  EMPTY_VALUES,
+} from "@/lib/teg-store";
+import {
+  getParamMeta,
   validateAll,
+  type Population,
   type TegValues,
   type ValueIssue,
 } from "@/lib/teg-algorithm";
 import { DisclaimerBanner } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
-
 
 export const Route = createFileRoute("/review")({
   head: () => ({
@@ -28,10 +34,14 @@ export const Route = createFileRoute("/review")({
 function Review() {
   const navigate = useNavigate();
   const [values, setValues] = useState<TegValues>(EMPTY_VALUES);
+  const [population, setPopulation] = useState<Population>("standard");
 
   useEffect(() => {
     setValues(loadValues());
+    setPopulation(loadPopulation());
   }, []);
+
+  const meta = useMemo(() => getParamMeta(population), [population]);
 
   const update = (k: keyof TegValues, raw: string) => {
     const next = raw.trim() === "" ? null : Number(raw);
@@ -41,7 +51,6 @@ function Review() {
   const issues = useMemo(() => validateAll(values), [values]);
   const issueByKey = useMemo(() => {
     const m = new Map<keyof TegValues, ValueIssue>();
-    // Errors win over warnings for the per-field highlight.
     for (const i of issues) {
       const existing = m.get(i.key);
       if (!existing || (existing.severity === "warning" && i.severity === "error")) {
@@ -56,7 +65,14 @@ function Review() {
   const submit = () => {
     if (errorCount > 0) return;
     saveValues(values);
+    savePopulation(population);
     navigate({ to: "/results" });
+  };
+
+  const togglePregnant = (checked: boolean) => {
+    const next: Population = checked ? "pregnant" : "standard";
+    setPopulation(next);
+    savePopulation(next);
   };
 
   return (
@@ -75,6 +91,31 @@ function Review() {
           Check every value against the TEG 6s display. Edit any that are wrong
           or missing. Leave a field blank if the parameter is unavailable.
         </p>
+
+        <label
+          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+            population === "pregnant"
+              ? "border-primary/60 bg-primary/10"
+              : "border-border bg-card"
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={population === "pregnant"}
+            onChange={(e) => togglePregnant(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[color:var(--primary)]"
+          />
+          <div className="text-sm">
+            <div className="font-semibold text-foreground">
+              Patient is pregnant
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Apply third-trimester / peripartum reference ranges and
+              transfusion thresholds (fibrinogen target raised, LY30 cutoff
+              tightened).
+            </div>
+          </div>
+        </label>
 
         {(errorCount > 0 || warningCount > 0) && (
           <div
@@ -98,8 +139,8 @@ function Review() {
         )}
 
         <div className="space-y-4">
-          {(Object.keys(PARAM_META) as (keyof TegValues)[]).map((k) => {
-            const meta = PARAM_META[k];
+          {(Object.keys(meta) as (keyof TegValues)[]).map((k) => {
+            const m = meta[k];
             const issue = issueByKey.get(k);
             const ring =
               issue?.severity === "error"
@@ -111,12 +152,12 @@ function Review() {
               <div key={k} className={`rounded-lg border bg-card p-4 ${ring}`}>
                 <label className="flex items-baseline justify-between gap-3">
                   <div>
-                    <div className="font-semibold">{meta.label}</div>
+                    <div className="font-semibold">{m.label}</div>
                     <div className="text-xs text-muted-foreground">
-                      {meta.description}
+                      {m.description}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      Normal: {meta.normal} {meta.unit} · Plausible: {meta.plausible[0]}–{meta.plausible[1]} {meta.unit}
+                      Normal{population === "pregnant" ? " (pregnancy)" : ""}: {m.normal} {m.unit} · Plausible: {m.plausible[0]}–{m.plausible[1]} {m.unit}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -125,14 +166,14 @@ function Review() {
                       inputMode="decimal"
                       step="0.1"
                       min={0}
-                      max={meta.plausible[1]}
+                      max={m.plausible[1]}
                       value={values[k] ?? ""}
                       onChange={(e) => update(k, e.target.value)}
                       className="w-24 rounded-md border border-input bg-background px-2 py-1.5 text-right text-sm"
                       placeholder="—"
                     />
                     <span className="w-8 text-xs text-muted-foreground">
-                      {meta.unit}
+                      {m.unit}
                     </span>
                   </div>
                 </label>
@@ -162,7 +203,6 @@ function Review() {
               ? "Generate recommendation (review warnings first)"
               : "Generate recommendation"}
         </button>
-
       </div>
     </main>
   );

@@ -1,7 +1,8 @@
 // Client-side session-only store. Nothing is persisted to a database.
-import type { TegValues } from "./teg-algorithm";
+import type { Population, TegValues } from "./teg-algorithm";
 
 const KEY = "teg-values-v1";
+const POP_KEY = "teg-population-v1";
 
 export const EMPTY_VALUES: TegValues = {
   CK_R: null,
@@ -30,6 +31,17 @@ export function loadValues(): TegValues {
 export function clearValues() {
   if (typeof window === "undefined") return;
   sessionStorage.removeItem(KEY);
+  sessionStorage.removeItem(POP_KEY);
+}
+
+export function savePopulation(p: Population) {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(POP_KEY, p);
+}
+
+export function loadPopulation(): Population {
+  if (typeof window === "undefined") return "standard";
+  return sessionStorage.getItem(POP_KEY) === "pregnant" ? "pregnant" : "standard";
 }
 
 const DISCLAIMER_KEY = "teg-disclaimer-ack-v1";
