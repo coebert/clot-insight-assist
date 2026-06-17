@@ -2,11 +2,17 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   CITATION,
-  PARAM_META,
+  getParamMeta,
   interpret,
+  type Population,
   type TegValues,
 } from "@/lib/teg-algorithm";
-import { clearValues, loadValues, EMPTY_VALUES } from "@/lib/teg-store";
+import {
+  clearValues,
+  loadPopulation,
+  loadValues,
+  EMPTY_VALUES,
+} from "@/lib/teg-store";
 import { DisclaimerBanner } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
 
@@ -27,9 +33,17 @@ export const Route = createFileRoute("/results")({
 function Results() {
   const navigate = useNavigate();
   const [values, setValues] = useState<TegValues>(EMPTY_VALUES);
-  useEffect(() => setValues(loadValues()), []);
+  const [population, setPopulation] = useState<Population>("standard");
+  useEffect(() => {
+    setValues(loadValues());
+    setPopulation(loadPopulation());
+  }, []);
 
-  const { recommendations, missing } = useMemo(() => interpret(values), [values]);
+  const meta = useMemo(() => getParamMeta(population), [population]);
+  const { recommendations, missing } = useMemo(
+    () => interpret(values, population),
+    [values, population],
+  );
 
   const startOver = () => {
     clearValues();
@@ -48,14 +62,21 @@ function Results() {
         <h1 className="text-2xl font-bold tracking-tight">Recommendation</h1>
         <DisclaimerBanner compact />
 
+        {population === "pregnant" && (
+          <div className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-foreground">
+            <strong>Pregnancy-adjusted interpretation:</strong> third-trimester
+            reference ranges and peripartum transfusion thresholds applied.
+          </div>
+        )}
+
         <section className="rounded-lg border bg-card p-4">
           <h2 className="text-sm font-semibold">Entered values</h2>
           <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-            {(Object.keys(PARAM_META) as (keyof TegValues)[]).map((k) => (
+            {(Object.keys(meta) as (keyof TegValues)[]).map((k) => (
               <div key={k} className="flex justify-between gap-2 border-b border-border/50 py-1">
-                <dt className="text-muted-foreground">{PARAM_META[k].label}</dt>
+                <dt className="text-muted-foreground">{meta[k].label}</dt>
                 <dd className="font-mono">
-                  {values[k] === null ? "—" : `${values[k]} ${PARAM_META[k].unit}`}
+                  {values[k] === null ? "—" : `${values[k]} ${meta[k].unit}`}
                 </dd>
               </div>
             ))}
@@ -64,7 +85,7 @@ function Results() {
 
         {missing.length > 0 && (
           <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-            Missing values: {missing.map((k) => PARAM_META[k].label).join(", ")}.
+            Missing values: {missing.map((k) => meta[k].label).join(", ")}.
             Rules requiring these parameters were skipped.
           </div>
         )}
