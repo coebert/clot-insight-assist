@@ -3,6 +3,21 @@ import { Mermaid } from "@/components/Mermaid";
 import { DisclaimerBanner } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
 import { CITATION } from "@/lib/teg-algorithm";
+import { REFERENCES, referencesFor } from "@/lib/teg-references";
+
+const RULES_IN_ORDER: { id: string; label: string }[] = [
+  { id: "channel-definitions", label: "TEG 6s channels & parameter definitions" },
+  { id: "ranges-adult", label: "Adult reference ranges" },
+  { id: "ranges-pregnancy", label: "Pregnancy (peripartum) reference ranges" },
+  { id: "rule-ffp", label: "Rule: Prolonged CK.R → FFP" },
+  { id: "rule-protamine", label: "Rule: CK.R − CKH.R > 2 min → Protamine" },
+  { id: "rule-cryo", label: "Rule: Low CFF.MA → Cryoprecipitate / fibrinogen concentrate" },
+  { id: "fib-target-pph", label: "Pregnancy: fibrinogen target ≥ 2 g/L (CFF.MA ≈ 20 mm)" },
+  { id: "rule-platelets", label: "Rule: Low CRT.MA with adequate fibrinogen → Platelets" },
+  { id: "rule-txa", label: "Rule: CK.LY30 > threshold → Tranexamic acid (adult)" },
+  { id: "rule-txa-pregnancy", label: "Rule: Tranexamic acid in postpartum haemorrhage" },
+  { id: "evidence-base", label: "Overall evidence base for viscoelastic-guided transfusion" },
+];
 
 export const Route = createFileRoute("/algorithm")({
   head: () => ({
@@ -140,9 +155,71 @@ function AlgorithmPage() {
           <Mermaid chart={RANGES} />
         </section>
 
-        <section className="rounded-lg border border-border bg-card/60 p-4">
-          <h2 className="text-sm font-semibold">Source</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{CITATION}</p>
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">References</h2>
+            <p className="text-sm text-muted-foreground">
+              Every rule and reference range maps to one or more peer-reviewed
+              sources or manufacturer documents listed below. Each DOI link
+              resolves to the canonical published version for independent
+              verification.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {RULES_IN_ORDER.map(({ id, label }) => {
+              const refs = referencesFor(id);
+              if (refs.length === 0) return null;
+              return (
+                <div
+                  key={id}
+                  className="rounded-lg border border-border bg-card/60 p-4"
+                >
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {label}
+                  </h3>
+                  <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs text-muted-foreground marker:text-primary">
+                    {refs.map((r) => (
+                      <li key={r.id}>
+                        <span>{r.citation}</span>{" "}
+                        <a
+                          href={r.url}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                        >
+                          Source ↗
+                        </a>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              );
+            })}
+          </div>
+
+          <details className="rounded-lg border border-border bg-card/40 p-4">
+            <summary className="cursor-pointer text-sm font-semibold text-foreground">
+              Full bibliography ({REFERENCES.length} sources)
+            </summary>
+            <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs text-muted-foreground marker:text-primary">
+              {REFERENCES.map((r) => (
+                <li key={r.id} id={`ref-${r.id}`}>
+                  <span>{r.citation}</span>{" "}
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                  >
+                    Source ↗
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </details>
+
+          <p className="text-xs text-muted-foreground">{CITATION}</p>
         </section>
 
         <div className="flex flex-col gap-2 sm:flex-row">
