@@ -8,6 +8,7 @@ import {
   type ValueIssue,
 } from "@/lib/teg-algorithm";
 import { DisclaimerBanner } from "@/components/Disclaimer";
+import { Logo } from "@/components/Logo";
 
 
 export const Route = createFileRoute("/review")({
@@ -59,11 +60,14 @@ function Review() {
   };
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8">
+    <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-xl space-y-6">
-        <Link to="/capture" className="text-sm text-muted-foreground underline">
-          ← Back to capture
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link to="/capture" className="text-sm text-muted-foreground underline">
+            ← Back to capture
+          </Link>
+          <Logo size={28} withWordmark />
+        </div>
         <h1 className="text-2xl font-bold tracking-tight">Confirm values</h1>
         <DisclaimerBanner compact />
 
@@ -77,7 +81,7 @@ function Review() {
             className={`rounded-md border px-3 py-2 text-sm ${
               errorCount > 0
                 ? "border-destructive/40 bg-destructive/10 text-destructive"
-                : "border-amber-300 bg-amber-50 text-amber-900"
+                : "border-amber-500/40 bg-amber-500/10 text-amber-200"
             }`}
           >
             {errorCount > 0 && (
@@ -135,7 +139,7 @@ function Review() {
                 {issue && (
                   <p
                     className={`mt-2 text-xs ${
-                      issue.severity === "error" ? "text-destructive" : "text-amber-700"
+                      issue.severity === "error" ? "text-destructive" : "text-amber-300"
                     }`}
                   >
                     {issue.severity === "error" ? "⚠ " : "⚠ "}
