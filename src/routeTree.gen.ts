@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResultsRouteImport } from './routes/results'
 import { Route as CaptureRouteImport } from './routes/capture'
+import { Route as AlgorithmRouteImport } from './routes/algorithm'
 import { Route as IndexRouteImport } from './routes/index'
 
 const ReviewRoute = ReviewRouteImport.update({
@@ -29,6 +30,11 @@ const CaptureRoute = CaptureRouteImport.update({
   path: '/capture',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AlgorithmRoute = AlgorithmRouteImport.update({
+  id: '/algorithm',
+  path: '/algorithm',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -37,12 +43,14 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/algorithm': typeof AlgorithmRoute
   '/capture': typeof CaptureRoute
   '/results': typeof ResultsRoute
   '/review': typeof ReviewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/algorithm': typeof AlgorithmRoute
   '/capture': typeof CaptureRoute
   '/results': typeof ResultsRoute
   '/review': typeof ReviewRoute
@@ -50,20 +58,22 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/algorithm': typeof AlgorithmRoute
   '/capture': typeof CaptureRoute
   '/results': typeof ResultsRoute
   '/review': typeof ReviewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/capture' | '/results' | '/review'
+  fullPaths: '/' | '/algorithm' | '/capture' | '/results' | '/review'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/capture' | '/results' | '/review'
-  id: '__root__' | '/' | '/capture' | '/results' | '/review'
+  to: '/' | '/algorithm' | '/capture' | '/results' | '/review'
+  id: '__root__' | '/' | '/algorithm' | '/capture' | '/results' | '/review'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AlgorithmRoute: typeof AlgorithmRoute
   CaptureRoute: typeof CaptureRoute
   ResultsRoute: typeof ResultsRoute
   ReviewRoute: typeof ReviewRoute
@@ -92,6 +102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CaptureRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/algorithm': {
+      id: '/algorithm'
+      path: '/algorithm'
+      fullPath: '/algorithm'
+      preLoaderRoute: typeof AlgorithmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -104,6 +121,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AlgorithmRoute: AlgorithmRoute,
   CaptureRoute: CaptureRoute,
   ResultsRoute: ResultsRoute,
   ReviewRoute: ReviewRoute,
