@@ -119,6 +119,12 @@ function Results() {
           ))}
         </section>
 
+        <p className="text-center text-xs text-muted-foreground print:hidden">
+          <Link to="/algorithm" className="underline underline-offset-4 hover:text-foreground">
+            View the decision tree this recommendation came from
+          </Link>
+        </p>
+
         <p className="text-xs text-muted-foreground">{CITATION}</p>
 
         <div className="flex flex-col gap-2 print:hidden">

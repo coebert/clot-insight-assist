@@ -69,6 +69,10 @@ function Landing() {
           <Link to="/capture" className="underline underline-offset-4 hover:text-foreground">
             Skip to manual entry
           </Link>
+          <span className="mx-2 opacity-50">·</span>
+          <Link to="/algorithm" className="underline underline-offset-4 hover:text-foreground">
+            View algorithm & decision tree
+          </Link>
         </p>
       </div>
     </main>
