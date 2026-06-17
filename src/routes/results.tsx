@@ -8,6 +8,7 @@ import {
 } from "@/lib/teg-algorithm";
 import { clearValues, loadValues, EMPTY_VALUES } from "@/lib/teg-store";
 import { DisclaimerBanner } from "@/components/Disclaimer";
+import { Logo } from "@/components/Logo";
 
 export const Route = createFileRoute("/results")({
   head: () => ({
@@ -36,11 +37,14 @@ function Results() {
   };
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8 print:py-2">
+    <main className="min-h-screen px-4 py-8 print:py-2">
       <div className="mx-auto max-w-xl space-y-6">
-        <Link to="/review" className="text-sm text-muted-foreground underline print:hidden">
-          ← Edit values
-        </Link>
+        <div className="flex items-center justify-between print:hidden">
+          <Link to="/review" className="text-sm text-muted-foreground underline">
+            ← Edit values
+          </Link>
+          <Logo size={28} withWordmark />
+        </div>
         <h1 className="text-2xl font-bold tracking-tight">Recommendation</h1>
         <DisclaimerBanner compact />
 
@@ -59,7 +63,7 @@ function Results() {
         </section>
 
         {missing.length > 0 && (
-          <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
             Missing values: {missing.map((k) => PARAM_META[k].label).join(", ")}.
             Rules requiring these parameters were skipped.
           </div>

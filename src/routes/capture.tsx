@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { extractTegValues } from "@/lib/teg-extract.functions";
 import { saveValues, EMPTY_VALUES } from "@/lib/teg-store";
 import { DisclaimerBanner } from "@/components/Disclaimer";
+import { Logo } from "@/components/Logo";
 
 export const Route = createFileRoute("/capture")({
   head: () => ({
@@ -63,13 +64,17 @@ function Capture() {
   }
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8">
+    <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-xl space-y-6">
-        <Link to="/" className="text-sm text-muted-foreground underline">
-          ← Back
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link to="/" className="text-sm text-muted-foreground underline">
+            ← Back
+          </Link>
+          <Logo size={28} withWordmark />
+        </div>
         <h1 className="text-2xl font-bold tracking-tight">Capture results</h1>
         <DisclaimerBanner compact />
+
 
         <section className="rounded-lg border bg-card p-5 text-card-foreground">
           <h2 className="font-semibold">Photograph the TEG 6s screen</h2>
