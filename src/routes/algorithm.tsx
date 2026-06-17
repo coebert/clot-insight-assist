@@ -107,7 +107,35 @@ const RANGES = `flowchart TB
   class CK,CKH,CRT,CFF,LY leaf;
 `;
 
+function matchesQuery(r: Reference, query: string): boolean {
+  const q = query.toLowerCase();
+  return (
+    r.citation.toLowerCase().includes(q) ||
+    r.id.toLowerCase().includes(q) ||
+    r.supports.some((s) => s.toLowerCase().includes(q)) ||
+    r.url.toLowerCase().includes(q)
+  );
+}
+
 function AlgorithmPage() {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+
+  const filteredRules = useMemo(() => {
+    if (!q) return RULES_IN_ORDER;
+    return RULES_IN_ORDER.filter(({ id, label }) => {
+      if (label.toLowerCase().includes(q) || id.toLowerCase().includes(q))
+        return true;
+      const refs = referencesFor(id);
+      return refs.some((r) => matchesQuery(r, q));
+    });
+  }, [q]);
+
+  const filteredBibliography = useMemo(() => {
+    if (!q) return REFERENCES;
+    return REFERENCES.filter((r) => matchesQuery(r, q));
+  }, [q]);
+
   return (
     <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-3xl space-y-8">
@@ -158,7 +186,7 @@ function AlgorithmPage() {
         </section>
 
         <section className="space-y-4">
-          <div>
+          <div className="space-y-2">
             <h2 className="text-lg font-semibold">References</h2>
             <p className="text-sm text-muted-foreground">
               Every rule and reference range maps to one or more peer-reviewed
@@ -168,9 +196,38 @@ function AlgorithmPage() {
             </p>
           </div>
 
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by keyword, author, rule, or topic..."
+              className="w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {q && (
+            <p className="text-xs text-muted-foreground">
+              {filteredRules.length} rule{filteredRules.length === 1 ? "" : "s"} and{" "}
+              {filteredBibliography.length} source{filteredBibliography.length === 1 ? "" : "s"} match.
+            </p>
+          )}
+
           <div className="space-y-3">
-            {RULES_IN_ORDER.map(({ id, label }) => {
-              const refs = referencesFor(id);
+            {filteredRules.map(({ id, label }) => {
+              const refs = referencesFor(id).filter((r) =>
+                q ? matchesQuery(r, q) : true
+              );
               if (refs.length === 0) return null;
               return (
                 <div
@@ -182,7 +239,7 @@ function AlgorithmPage() {
                   </h3>
                   <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs text-muted-foreground marker:text-primary">
                     {refs.map((r) => (
-                      <li key={r.id}>
+                      <li key={r.id} id={`ref-${r.id}`}>
                         <span>{r.citation}</span>{" "}
                         <a
                           href={r.url}
@@ -198,14 +255,19 @@ function AlgorithmPage() {
                 </div>
               );
             })}
+            {q && filteredRules.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No rules match your search.
+              </p>
+            )}
           </div>
 
           <details className="rounded-lg border border-border bg-card/40 p-4">
             <summary className="cursor-pointer text-sm font-semibold text-foreground">
-              Full bibliography ({REFERENCES.length} sources)
+              Full bibliography ({filteredBibliography.length} source{filteredBibliography.length === 1 ? "" : "s"})
             </summary>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs text-muted-foreground marker:text-primary">
-              {REFERENCES.map((r) => (
+              {filteredBibliography.map((r) => (
                 <li key={r.id} id={`ref-${r.id}`}>
                   <span>{r.citation}</span>{" "}
                   <a
@@ -219,6 +281,11 @@ function AlgorithmPage() {
                 </li>
               ))}
             </ol>
+            {q && filteredBibliography.length === 0 && (
+              <p className="mt-3 text-sm text-muted-foreground">
+                No sources match your search.
+              </p>
+            )}
           </details>
 
           <p className="text-xs text-muted-foreground">{CITATION}</p>
