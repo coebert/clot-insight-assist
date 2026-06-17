@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { Search, X } from "lucide-react";
 import { Mermaid } from "@/components/Mermaid";
 import { DisclaimerBanner } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
 import { CITATION } from "@/lib/teg-algorithm";
-import { REFERENCES, referencesFor } from "@/lib/teg-references";
+import { REFERENCES, referencesFor, type Reference } from "@/lib/teg-references";
 
 const RULES_IN_ORDER: { id: string; label: string }[] = [
   { id: "channel-definitions", label: "TEG 6s channels & parameter definitions" },
