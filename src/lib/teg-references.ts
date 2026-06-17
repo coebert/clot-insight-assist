@@ -33,10 +33,10 @@ export const REFERENCES: Reference[] = [
     supports: ["ranges-pregnancy"],
   },
   {
-    id: "erdoes-2021",
+    id: "erdoes-2018",
     citation:
-      "Erdoes G, Schloer H, Eberle B, Nagler M. Next generation viscoelastic point-of-care tests: a narrative review addressing the evolution from ROTEM Delta to Sigma and TEG 5000 to 6s. Hamostaseologie. 2023;43(5):361-371.",
-    url: "https://doi.org/10.1055/a-1827-7950",
+      "Erdoes G, Schloer H, Eberle B, Nagler M. Next generation viscoelasticity assays in cardiothoracic surgery: feasibility of the TEG6s system. PLoS One. 2018;13(12):e0209360.",
+    url: "https://doi.org/10.1371/journal.pone.0209360",
     supports: ["ranges-adult", "channel-definitions"],
   },
   {
@@ -119,10 +119,10 @@ export const RULE_REFERENCES: Record<string, string[]> = {
   "rule-platelets": ["rossaint-2023", "kozek-eshrm-2017", "asa-2015"],
   "rule-txa": ["crash2-2010", "rossaint-2023"],
   "rule-txa-pregnancy": ["woman-2017", "rcog-gt52-2016"],
-  "ranges-adult": ["haemonetics-manual", "erdoes-2021"],
+  "ranges-adult": ["haemonetics-manual", "erdoes-2018"],
   "ranges-pregnancy": ["delange-2014", "gillissen-2019", "collins-2014"],
   "fib-target-pph": ["collins-2014", "rcog-gt52-2016", "gillissen-2019"],
-  "channel-definitions": ["haemonetics-manual", "erdoes-2021"],
+  "channel-definitions": ["haemonetics-manual", "erdoes-2018"],
   "evidence-base": ["wikkelso-2017", "scarlatescu-2019"],
 };
 
