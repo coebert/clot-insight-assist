@@ -1,6 +1,8 @@
 // TEG 6s Global Hemostasis cartridge interpretation rules.
-// Reference ranges based on Haemonetics TEG 6s operator manual cutoffs.
-// This is a transparent, auditable rule engine — no AI in the decision path.
+// Standard reference ranges based on Haemonetics TEG 6s operator manual cutoffs.
+// Pregnancy (third-trimester) reference ranges derived from published TEG 6s
+// peripartum cohorts (e.g. de Lange et al. 2014, Gillissen et al. 2019) — see
+// CITATION below. This is a transparent, auditable rule engine.
 
 export type TegValues = {
   CK_R: number | null; // Citrated Kaolin R time (min)
@@ -10,18 +12,19 @@ export type TegValues = {
   CK_LY30: number | null; // % lysis at 30 min from CK channel
 };
 
-export const PARAM_META: Record<
-  keyof TegValues,
-  {
-    label: string;
-    unit: string;
-    normal: string;
-    description: string;
-    // Physiologically plausible range — anything outside is almost certainly
-    // an OCR mistake or unit error and must be confirmed.
-    plausible: [number, number];
-  }
-> = {
+export type Population = "standard" | "pregnant";
+
+type ParamMeta = {
+  label: string;
+  unit: string;
+  normal: string;
+  description: string;
+  // Physiologically plausible range — anything outside is almost certainly
+  // an OCR mistake or unit error and must be confirmed.
+  plausible: [number, number];
+};
+
+const STANDARD_META: Record<keyof TegValues, ParamMeta> = {
   CK_R: {
     label: "CK.R",
     unit: "min",
@@ -59,15 +62,62 @@ export const PARAM_META: Record<
   },
 };
 
+// Third-trimester / peripartum reference ranges. Pregnancy is a
+// hypercoagulable state: fibrinogen rises, MA increases, R shortens slightly.
+const PREGNANT_META: Record<keyof TegValues, ParamMeta> = {
+  CK_R: { ...STANDARD_META.CK_R, normal: "4.6 – 8.7" },
+  CKH_R: { ...STANDARD_META.CKH_R, normal: "4.6 – 8.7" },
+  CRT_MA: { ...STANDARD_META.CRT_MA, normal: "60 – 73" },
+  CFF_MA: { ...STANDARD_META.CFF_MA, normal: "18 – 41" },
+  CK_LY30: { ...STANDARD_META.CK_LY30, normal: "< 2.6" },
+};
+
+export function getParamMeta(
+  population: Population = "standard",
+): Record<keyof TegValues, ParamMeta> {
+  return population === "pregnant" ? PREGNANT_META : STANDARD_META;
+}
+
+// Back-compat export so existing imports continue to work (standard ranges).
+export const PARAM_META = STANDARD_META;
+
+// Decision thresholds — also adjusted in pregnancy.
+type Thresholds = {
+  R_prolonged: number; // min — triggers FFP
+  heparin_delta: number; // min — CK.R − CKH.R for protamine
+  fib_low: number; // mm — CFF.MA below this triggers cryo/fibrinogen
+  platelet_low: number; // mm — CRT.MA below this (with adequate fib) triggers platelets
+  ly30_high: number; // % — triggers antifibrinolytic
+};
+
+const STANDARD_TH: Thresholds = {
+  R_prolonged: 10,
+  heparin_delta: 2,
+  fib_low: 15,
+  platelet_low: 52,
+  ly30_high: 3,
+};
+
+// Peripartum thresholds reflect higher physiological fibrinogen and MA, and
+// the PPH literature targeting fibrinogen ≳ 2 g/L (CFF.MA ≈ 20 mm).
+const PREGNANT_TH: Thresholds = {
+  R_prolonged: 9,
+  heparin_delta: 2,
+  fib_low: 20,
+  platelet_low: 55,
+  ly30_high: 2.6,
+};
+
+function thresholdsFor(population: Population): Thresholds {
+  return population === "pregnant" ? PREGNANT_TH : STANDARD_TH;
+}
+
 export type ValueIssue = {
   key: keyof TegValues;
   severity: "error" | "warning";
   message: string;
 };
 
-// Per-field plausibility check. Returns null if the value is acceptable.
-// Missing values (null) are not issues here — they are handled separately
-// by the rule engine, which simply skips rules that need them.
 export function validateValue(
   key: keyof TegValues,
   value: number | null,
@@ -79,7 +129,7 @@ export function validateValue(
   if (value < 0) {
     return { key, severity: "error", message: "Negative value is not possible." };
   }
-  const meta = PARAM_META[key];
+  const meta = STANDARD_META[key];
   const [lo, hi] = meta.plausible;
   if (value < lo || value > hi) {
     return {
@@ -93,12 +143,11 @@ export function validateValue(
 
 export function validateAll(v: TegValues): ValueIssue[] {
   const issues: ValueIssue[] = [];
-  (Object.keys(PARAM_META) as (keyof TegValues)[]).forEach((k) => {
+  (Object.keys(STANDARD_META) as (keyof TegValues)[]).forEach((k) => {
     const i = validateValue(k, v[k]);
     if (i) issues.push(i);
   });
 
-  // Cross-field sanity: heparinase can only shorten R, never prolong it.
   if (v.CK_R !== null && v.CKH_R !== null && v.CKH_R - v.CK_R > 2) {
     issues.push({
       key: "CKH_R",
@@ -106,7 +155,6 @@ export function validateAll(v: TegValues): ValueIssue[] {
       message: `CKH.R (${v.CKH_R}) > CK.R (${v.CK_R}) — unexpected, please re-check.`,
     });
   }
-  // CFF.MA is a component of CRT.MA, so it should not exceed it.
   if (v.CFF_MA !== null && v.CRT_MA !== null && v.CFF_MA > v.CRT_MA) {
     issues.push({
       key: "CFF_MA",
@@ -116,7 +164,6 @@ export function validateAll(v: TegValues): ValueIssue[] {
   }
   return issues;
 }
-
 
 export type Recommendation = {
   id: string;
@@ -128,26 +175,37 @@ export type Recommendation = {
   rationale: string;
 };
 
-export function interpret(v: TegValues): {
+export function interpret(
+  v: TegValues,
+  population: Population = "standard",
+): {
   recommendations: Recommendation[];
   missing: (keyof TegValues)[];
+  population: Population;
 } {
+  const th = thresholdsFor(population);
   const recs: Recommendation[] = [];
   const missing = (Object.keys(v) as (keyof TegValues)[]).filter(
     (k) => v[k] === null || Number.isNaN(v[k] as number),
   );
 
+  const pregNote =
+    population === "pregnant"
+      ? " Pregnancy-adjusted threshold (third-trimester physiology)."
+      : "";
+
   // 1. Prolonged CK.R → FFP
-  if (v.CK_R !== null && v.CK_R > 10) {
+  if (v.CK_R !== null && v.CK_R > th.R_prolonged) {
     recs.push({
       id: "ffp",
       severity: "action",
       finding: "Prolonged CK.R (coagulation factor deficiency)",
-      trigger: `CK.R = ${v.CK_R} min (> 10 min)`,
+      trigger: `CK.R = ${v.CK_R} min (> ${th.R_prolonged} min)`,
       product: "Fresh Frozen Plasma (FFP)",
       dose: "10–15 mL/kg",
       rationale:
-        "Prolonged R time on the kaolin channel reflects deficiency of clotting factors; FFP replaces factors.",
+        "Prolonged R time on the kaolin channel reflects deficiency of clotting factors; FFP replaces factors." +
+        pregNote,
     });
   }
 
@@ -155,14 +213,14 @@ export function interpret(v: TegValues): {
   if (
     v.CK_R !== null &&
     v.CKH_R !== null &&
-    v.CK_R > 10 &&
-    v.CK_R - v.CKH_R > 2
+    v.CK_R > th.R_prolonged &&
+    v.CK_R - v.CKH_R > th.heparin_delta
   ) {
     recs.push({
       id: "protamine",
       severity: "action",
       finding: "Residual heparin effect",
-      trigger: `CK.R − CKH.R = ${(v.CK_R - v.CKH_R).toFixed(1)} min (> 2 min) with prolonged CK.R`,
+      trigger: `CK.R − CKH.R = ${(v.CK_R - v.CKH_R).toFixed(1)} min (> ${th.heparin_delta} min) with prolonged CK.R`,
       product: "Protamine sulfate",
       dose: "Dose per institutional protocol (typically 25–50 mg test dose)",
       rationale:
@@ -171,48 +229,59 @@ export function interpret(v: TegValues): {
   }
 
   // 3. Low CFF.MA → Cryoprecipitate / fibrinogen concentrate
-  if (v.CFF_MA !== null && v.CFF_MA < 15) {
+  if (v.CFF_MA !== null && v.CFF_MA < th.fib_low) {
     recs.push({
       id: "cryo",
       severity: "action",
       finding: "Hypofibrinogenaemia",
-      trigger: `CFF.MA = ${v.CFF_MA} mm (< 15 mm)`,
+      trigger: `CFF.MA = ${v.CFF_MA} mm (< ${th.fib_low} mm)`,
       product: "Cryoprecipitate or fibrinogen concentrate",
       dose: "Cryoprecipitate 1 unit / 10 kg, or fibrinogen concentrate 25–50 mg/kg",
       rationale:
-        "Low Functional Fibrinogen MA indicates insufficient fibrinogen for clot formation.",
+        "Low Functional Fibrinogen MA indicates insufficient fibrinogen for clot formation." +
+        (population === "pregnant"
+          ? " In the peripartum setting, fibrinogen ≳ 2 g/L (CFF.MA ≈ 20 mm) is commonly targeted because PPH risk rises sharply below this level."
+          : ""),
     });
   }
 
   // 4. Low CRT.MA with adequate fibrinogen → Platelets
   if (
     v.CRT_MA !== null &&
-    v.CRT_MA < 52 &&
+    v.CRT_MA < th.platelet_low &&
     v.CFF_MA !== null &&
-    v.CFF_MA >= 15
+    v.CFF_MA >= th.fib_low
   ) {
     recs.push({
       id: "platelets",
       severity: "action",
       finding: "Reduced platelet contribution to clot strength",
-      trigger: `CRT.MA = ${v.CRT_MA} mm (< 52 mm) with CFF.MA ≥ 15 mm`,
+      trigger: `CRT.MA = ${v.CRT_MA} mm (< ${th.platelet_low} mm) with CFF.MA ≥ ${th.fib_low} mm`,
       product: "Platelets",
       dose: "1 adult therapeutic dose (≈1 apheresis unit or pool of 4–6)",
       rationale:
-        "Low overall MA with adequate fibrinogen MA isolates the deficit to platelet number/function.",
+        "Low overall MA with adequate fibrinogen MA isolates the deficit to platelet number/function." +
+        pregNote,
     });
   }
 
   // 5. Hyperfibrinolysis → Antifibrinolytic
-  if (v.CK_LY30 !== null && v.CK_LY30 > 3) {
+  if (v.CK_LY30 !== null && v.CK_LY30 > th.ly30_high) {
     recs.push({
       id: "tranexamic",
       severity: "action",
       finding: "Hyperfibrinolysis",
-      trigger: `CK.LY30 = ${v.CK_LY30}% (> 3%)`,
+      trigger: `CK.LY30 = ${v.CK_LY30}% (> ${th.ly30_high}%)`,
       product: "Tranexamic acid (antifibrinolytic)",
-      dose: "1 g IV over 10 min, then 1 g over 8 h (CRASH-2 regimen) or per local protocol",
-      rationale: "Elevated LY30 indicates accelerated clot breakdown.",
+      dose:
+        population === "pregnant"
+          ? "1 g IV over 10 min (WOMAN trial regimen for PPH); repeat 1 g if bleeding continues after 30 min"
+          : "1 g IV over 10 min, then 1 g over 8 h (CRASH-2 regimen) or per local protocol",
+      rationale:
+        "Elevated LY30 indicates accelerated clot breakdown." +
+        (population === "pregnant"
+          ? " Pregnancy is normally hypofibrinolytic, so any rise above ~2.6% is more strongly suggestive of pathological fibrinolysis."
+          : ""),
     });
   }
 
@@ -225,12 +294,15 @@ export function interpret(v: TegValues): {
       product: "No blood product indicated based on TEG",
       dose: "—",
       rationale:
-        "TEG does not detect every cause of bleeding; correlate with the clinical picture and laboratory results.",
+        "TEG does not detect every cause of bleeding; correlate with the clinical picture and laboratory results." +
+        (population === "pregnant"
+          ? " Pregnancy-adjusted ranges were applied."
+          : ""),
     });
   }
 
-  return { recommendations: recs, missing };
+  return { recommendations: recs, missing, population };
 }
 
 export const CITATION =
-  "Reference ranges from Haemonetics TEG 6s Global Hemostasis cartridge operator manual. Algorithm thresholds based on commonly cited transfusion ladders for viscoelastic-guided haemostatic resuscitation. Verify against your institutional protocol.";
+  "Standard reference ranges: Haemonetics TEG 6s Global Hemostasis cartridge operator manual. Pregnancy (third-trimester) reference ranges and peripartum thresholds derived from published TEG 6s obstetric cohorts (e.g. de Lange NM et al., Thromb Res 2014; Gillissen A et al., Anesth Analg 2019) and PPH guidance (RCOG Green-top 52; WOMAN trial). Always verify against your institutional protocol.";
