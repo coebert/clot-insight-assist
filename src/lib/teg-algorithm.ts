@@ -24,6 +24,26 @@ type ParamMeta = {
   plausible: [number, number];
 };
 
+// Empty-values sentinel — lives with the schema, not the store, so any
+// caller (extractor, store, UI) can share the same shape.
+export const EMPTY_VALUES: TegValues = {
+  CK_R: null,
+  CKH_R: null,
+  CRT_MA: null,
+  CFF_MA: null,
+  CK_LY30: null,
+};
+
+// Plausibility bounds only — decoupled from PARAM_META so the OCR scrubber
+// doesn't have to reach into UI copy.
+export const PLAUSIBLE: Record<keyof TegValues, readonly [number, number]> = {
+  CK_R: [0.5, 60],
+  CKH_R: [0.5, 60],
+  CRT_MA: [0, 100],
+  CFF_MA: [0, 60],
+  CK_LY30: [0, 100],
+};
+
 const STANDARD_META: Record<keyof TegValues, ParamMeta> = {
   CK_R: {
     label: "CK.R",
