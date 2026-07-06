@@ -209,10 +209,14 @@ export function interpret(
     (k) => v[k] === null || Number.isNaN(v[k] as number),
   );
 
-  const pregNote =
-    population === "pregnant"
-      ? " Pregnancy-adjusted threshold (third-trimester physiology)."
-      : "";
+  // Small helper — avoids string-concatenating optional context onto every
+  // rationale by hand (easy to forget, easy to double-space).
+  const rationale = (base: string, pregnancyOnly?: string) =>
+    population === "pregnant" && pregnancyOnly
+      ? `${base} ${pregnancyOnly}`
+      : base;
+  const pregNote = " Pregnancy-adjusted threshold (third-trimester physiology).";
+
 
   // 1. Prolonged CK.R → FFP
   if (v.CK_R !== null && v.CK_R > th.R_prolonged) {
@@ -223,9 +227,10 @@ export function interpret(
       trigger: `CK.R = ${v.CK_R} min (> ${th.R_prolonged} min)`,
       product: "Fresh Frozen Plasma (FFP)",
       dose: "10–15 mL/kg",
-      rationale:
-        "Prolonged R time on the kaolin channel reflects deficiency of clotting factors; FFP replaces factors." +
-        pregNote,
+      rationale: rationale(
+        "Prolonged R time on the kaolin channel reflects deficiency of clotting factors; FFP replaces factors.",
+        pregNote.trim(),
+      ),
     });
   }
 
@@ -257,11 +262,10 @@ export function interpret(
       trigger: `CFF.MA = ${v.CFF_MA} mm (< ${th.fib_low} mm)`,
       product: "Cryoprecipitate or fibrinogen concentrate",
       dose: "Cryoprecipitate 1 unit / 10 kg, or fibrinogen concentrate 25–50 mg/kg",
-      rationale:
-        "Low Functional Fibrinogen MA indicates insufficient fibrinogen for clot formation." +
-        (population === "pregnant"
-          ? " In the peripartum setting, fibrinogen ≳ 2 g/L (CFF.MA ≈ 20 mm) is commonly targeted because PPH risk rises sharply below this level."
-          : ""),
+      rationale: rationale(
+        "Low Functional Fibrinogen MA indicates insufficient fibrinogen for clot formation.",
+        "In the peripartum setting, fibrinogen ≳ 2 g/L (CFF.MA ≈ 20 mm) is commonly targeted because PPH risk rises sharply below this level.",
+      ),
     });
   }
 
@@ -279,9 +283,10 @@ export function interpret(
       trigger: `CRT.MA = ${v.CRT_MA} mm (< ${th.platelet_low} mm) with CFF.MA ≥ ${th.fib_low} mm`,
       product: "Platelets",
       dose: "1 adult therapeutic dose (≈1 apheresis unit or pool of 4–6)",
-      rationale:
-        "Low overall MA with adequate fibrinogen MA isolates the deficit to platelet number/function." +
-        pregNote,
+      rationale: rationale(
+        "Low overall MA with adequate fibrinogen MA isolates the deficit to platelet number/function.",
+        pregNote.trim(),
+      ),
     });
   }
 
@@ -297,11 +302,10 @@ export function interpret(
         population === "pregnant"
           ? "1 g IV over 10 min (WOMAN trial regimen for PPH); repeat 1 g if bleeding continues after 30 min"
           : "1 g IV over 10 min, then 1 g over 8 h (CRASH-2 regimen) or per local protocol",
-      rationale:
-        "Elevated LY30 indicates accelerated clot breakdown." +
-        (population === "pregnant"
-          ? " Pregnancy is normally hypofibrinolytic, so any rise above ~2.6% is more strongly suggestive of pathological fibrinolysis."
-          : ""),
+      rationale: rationale(
+        "Elevated LY30 indicates accelerated clot breakdown.",
+        "Pregnancy is normally hypofibrinolytic, so any rise above ~2.6% is more strongly suggestive of pathological fibrinolysis.",
+      ),
     });
   }
 
@@ -313,11 +317,10 @@ export function interpret(
       trigger: "No threshold crossed",
       product: "No blood product indicated based on TEG",
       dose: "—",
-      rationale:
-        "TEG does not detect every cause of bleeding; correlate with the clinical picture and laboratory results." +
-        (population === "pregnant"
-          ? " Pregnancy-adjusted ranges were applied."
-          : ""),
+      rationale: rationale(
+        "TEG does not detect every cause of bleeding; correlate with the clinical picture and laboratory results.",
+        "Pregnancy-adjusted ranges were applied.",
+      ),
     });
   }
 
