@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
+  hasSavedValues,
   loadPopulation,
   loadValues,
   savePopulation,
@@ -35,13 +36,23 @@ function Review() {
   const navigate = useNavigate();
   const [values, setValues] = useState<TegValues>(EMPTY_VALUES);
   const [population, setPopulation] = useState<Population>("standard");
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // Route guard: if the user landed here directly without going through
+    // /capture (or after a session reset), send them back rather than
+    // rendering a form full of empty fields with no context.
+    if (!hasSavedValues()) {
+      navigate({ to: "/capture", replace: true });
+      return;
+    }
     setValues(loadValues());
     setPopulation(loadPopulation());
-  }, []);
+    setReady(true);
+  }, [navigate]);
 
   const meta = useMemo(() => getParamMeta(population), [population]);
+
 
   const update = (k: keyof TegValues, raw: string) => {
     const next = raw.trim() === "" ? null : Number(raw);
