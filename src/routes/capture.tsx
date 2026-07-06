@@ -82,6 +82,7 @@ function Capture() {
   const streamRef = useRef<MediaStream | null>(null);
   const confirmRef = useRef<ConfirmMap>({});
   const cancelledRef = useRef(false);
+  const singlePhotoAttemptRef = useRef<symbol | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [state, setState] = useState<ScanState>("idle");
@@ -96,7 +97,13 @@ function Capture() {
     streamRef.current = null;
   }, []);
 
-  useEffect(() => () => stopCamera(), [stopCamera]);
+  useEffect(
+    () => () => {
+      stopCamera();
+      singlePhotoAttemptRef.current = null;
+    },
+    [stopCamera],
+  );
 
   const finishWith = useCallback(
     (vals: TegValues) => {
@@ -220,9 +227,19 @@ function Capture() {
     finishWith(latest);
   }, [latest, finishWith]);
 
+  // Belt-and-braces client-side timeout. The server function already caps
+  // its own upstream fetch at 30s, but a stalled TCP path between browser
+  // and server would still leave the UI in "starting…" forever.
+  const SINGLE_PHOTO_TIMEOUT_MS = 45_000;
+
   async function onSinglePhoto(file: File) {
     setError(null);
     setState("starting");
+    // Track this specific attempt so an in-flight response that arrives
+    // after the user has stopped/navigated cannot flip state back.
+    const attemptId = Symbol("single-photo");
+    singlePhotoAttemptRef.current = attemptId;
+    const stillCurrent = () => singlePhotoAttemptRef.current === attemptId;
     try {
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const r = new FileReader();
@@ -230,7 +247,16 @@ function Capture() {
         r.onerror = () => reject(r.error);
         r.readAsDataURL(file);
       });
-      const result = await extract({ data: { imageDataUrl: dataUrl } });
+      const result = await Promise.race([
+        extract({ data: { imageDataUrl: dataUrl } }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Request timed out. Please try again or enter values manually.")),
+            SINGLE_PHOTO_TIMEOUT_MS,
+          ),
+        ),
+      ]);
+      if (!stillCurrent()) return;
       saveValues({
         CK_R: result.CK_R,
         CKH_R: result.CKH_R,
@@ -240,6 +266,7 @@ function Capture() {
       });
       navigate({ to: "/review" });
     } catch (e) {
+      if (!stillCurrent()) return;
       setState("error");
       setError(e instanceof Error ? e.message : "Unknown error");
     }
