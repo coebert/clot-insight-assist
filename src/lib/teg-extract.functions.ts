@@ -46,30 +46,44 @@ Return null for any value you cannot read with high confidence. Do NOT guess. Do
 Respond ONLY with a JSON object matching this exact shape:
 {"CK_R": number|null, "CKH_R": number|null, "CRT_MA": number|null, "CFF_MA": number|null, "CK_LY30": number|null, "notes": string}`;
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Extract the TEG 6s parameters from this image. Return JSON only.",
-              },
-              { type: "image_url", image_url: { url: data.imageDataUrl } },
-            ],
-          },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(AI_ENDPOINT, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model: AI_MODEL,
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Extract the TEG 6s parameters from this image. Return JSON only.",
+                },
+                { type: "image_url", image_url: { url: data.imageDataUrl } },
+              ],
+            },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") {
+        throw new Error("AI request timed out. Please try again or enter values manually.");
+      }
+      throw e;
+    } finally {
+      clearTimeout(timeout);
+    }
+
 
     if (res.status === 429) {
       throw new Error("Rate limit exceeded — please try again in a moment.");
