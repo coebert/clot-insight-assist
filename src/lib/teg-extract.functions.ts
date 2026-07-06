@@ -117,10 +117,10 @@ Respond ONLY with a JSON object matching this exact shape:
     // Null it out so the clinician must enter it manually rather than
     // accidentally confirm a misread number.
     const scrubbed = { ...result.data };
-    (Object.keys(PARAM_META) as (keyof TegValues)[]).forEach((k) => {
+    (Object.keys(PLAUSIBLE) as (keyof TegValues)[]).forEach((k) => {
       const val = scrubbed[k];
       if (val === null || val === undefined) return;
-      const [lo, hi] = PARAM_META[k].plausible;
+      const [lo, hi] = PLAUSIBLE[k];
       if (!Number.isFinite(val) || val < lo || val > hi) {
         scrubbed[k] = null;
       }
