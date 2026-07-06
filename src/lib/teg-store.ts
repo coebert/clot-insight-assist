@@ -1,16 +1,18 @@
 // Client-side session-only store. Nothing is persisted to a database.
-import type { Population, TegValues } from "./teg-algorithm";
+import { EMPTY_VALUES, type Population, type TegValues } from "./teg-algorithm";
+
+// Re-export so existing `import { EMPTY_VALUES } from "@/lib/teg-store"`
+// call sites keep working while the canonical definition lives with the schema.
+export { EMPTY_VALUES };
 
 const KEY = "teg-values-v1";
 const POP_KEY = "teg-population-v1";
 
-export const EMPTY_VALUES: TegValues = {
-  CK_R: null,
-  CKH_R: null,
-  CRT_MA: null,
-  CFF_MA: null,
-  CK_LY30: null,
-};
+export function hasSavedValues(): boolean {
+  if (typeof window === "undefined") return false;
+  return sessionStorage.getItem(KEY) !== null;
+}
+
 
 export function saveValues(v: TegValues) {
   if (typeof window === "undefined") return;
