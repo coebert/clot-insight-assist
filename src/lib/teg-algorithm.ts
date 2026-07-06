@@ -262,11 +262,10 @@ export function interpret(
       trigger: `CFF.MA = ${v.CFF_MA} mm (< ${th.fib_low} mm)`,
       product: "Cryoprecipitate or fibrinogen concentrate",
       dose: "Cryoprecipitate 1 unit / 10 kg, or fibrinogen concentrate 25–50 mg/kg",
-      rationale:
-        "Low Functional Fibrinogen MA indicates insufficient fibrinogen for clot formation." +
-        (population === "pregnant"
-          ? " In the peripartum setting, fibrinogen ≳ 2 g/L (CFF.MA ≈ 20 mm) is commonly targeted because PPH risk rises sharply below this level."
-          : ""),
+      rationale: rationale(
+        "Low Functional Fibrinogen MA indicates insufficient fibrinogen for clot formation.",
+        "In the peripartum setting, fibrinogen ≳ 2 g/L (CFF.MA ≈ 20 mm) is commonly targeted because PPH risk rises sharply below this level.",
+      ),
     });
   }
 
