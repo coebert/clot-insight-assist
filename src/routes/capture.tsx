@@ -33,19 +33,25 @@ const TOLERANCE = { abs: 0.3, rel: 0.05 }; // 0.3 unit OR 5% — whichever large
 
 const KEYS: (keyof TegValues)[] = ["CK_R", "CKH_R", "CRT_MA", "CFF_MA", "CK_LY30"];
 
-// Return the set of keys where both frames have a value AND the values agree
-// within tolerance. Callers use this both to score stability AND to know
-// which specific keys are safe to carry forward when merging.
-function agreedKeys(a: TegValues, b: TegValues): Set<keyof TegValues> {
-  const agreed = new Set<keyof TegValues>();
-  for (const k of KEYS) {
-    const av = a[k];
-    const bv = b[k];
-    if (av === null || bv === null) continue;
-    const tol = Math.max(TOLERANCE.abs, Math.abs(av) * TOLERANCE.rel);
-    if (Math.abs(av - bv) <= tol) agreed.add(k);
-  }
-  return agreed;
+// A rolling map of per-key confirmations across the whole scan window.
+// Each frame with a value for `k` either agrees with the current candidate
+// (bump `hits`) or replaces it (reset to 1). A key is "confirmed" once its
+// hits reach STABILITY_REQUIRED — and stays confirmed even if a later frame
+// happens to miss that key, so we no longer discard values just because the
+// most recent pair of frames didn't overlap on them.
+type Confirmation = { value: number; hits: number };
+type ConfirmMap = Partial<Record<keyof TegValues, Confirmation>>;
+
+function agrees(a: number, b: number): boolean {
+  const tol = Math.max(TOLERANCE.abs, Math.abs(a) * TOLERANCE.rel);
+  return Math.abs(a - b) <= tol;
+}
+
+function countConfirmed(c: ConfirmMap): number {
+  return KEYS.reduce(
+    (n, k) => n + ((c[k]?.hits ?? 0) >= STABILITY_REQUIRED ? 1 : 0),
+    0,
+  );
 }
 
 function countRead(v: TegValues): number {
