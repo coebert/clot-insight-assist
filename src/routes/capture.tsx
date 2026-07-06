@@ -82,6 +82,7 @@ function Capture() {
   const streamRef = useRef<MediaStream | null>(null);
   const confirmRef = useRef<ConfirmMap>({});
   const cancelledRef = useRef(false);
+  const singlePhotoAttemptRef = useRef<symbol | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [state, setState] = useState<ScanState>("idle");
