@@ -142,7 +142,7 @@ export function validateValue(
     return { key, severity: "error", message: "Negative value is not possible." };
   }
   const meta = STANDARD_META[key];
-  const [lo, hi] = meta.plausible;
+  const [lo, hi] = PLAUSIBLE[key];
   if (value < lo || value > hi) {
     return {
       key,
