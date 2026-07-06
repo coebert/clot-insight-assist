@@ -194,8 +194,7 @@ function Capture() {
     setError(null);
     setState("starting");
     cancelledRef.current = false;
-    stableHitsRef.current = 0;
-    lastReadRef.current = null;
+    confirmRef.current = {};
     setLatest(EMPTY_VALUES);
     setScanCount(0);
     try {
