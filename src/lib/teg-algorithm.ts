@@ -317,11 +317,10 @@ export function interpret(
       trigger: "No threshold crossed",
       product: "No blood product indicated based on TEG",
       dose: "—",
-      rationale:
-        "TEG does not detect every cause of bleeding; correlate with the clinical picture and laboratory results." +
-        (population === "pregnant"
-          ? " Pregnancy-adjusted ranges were applied."
-          : ""),
+      rationale: rationale(
+        "TEG does not detect every cause of bleeding; correlate with the clinical picture and laboratory results.",
+        "Pregnancy-adjusted ranges were applied.",
+      ),
     });
   }
 
