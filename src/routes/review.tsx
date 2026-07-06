@@ -1,12 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
-  hasSavedValues,
-  loadPopulation,
-  loadValues,
+  clearValues,
   savePopulation,
   saveValues,
-  EMPTY_VALUES,
+  useTegSession,
 } from "@/lib/teg-store";
 import {
   getParamMeta,
@@ -17,6 +15,11 @@ import {
 } from "@/lib/teg-algorithm";
 import { DisclaimerBanner } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/review")({
   head: () => ({
@@ -34,29 +37,21 @@ export const Route = createFileRoute("/review")({
 
 function Review() {
   const navigate = useNavigate();
-  const [values, setValues] = useState<TegValues>(EMPTY_VALUES);
-  const [population, setPopulation] = useState<Population>("standard");
-  const [ready, setReady] = useState(false);
+  const { values, population, hasValues } = useTegSession();
 
   useEffect(() => {
     // Route guard: if the user landed here directly without going through
     // /capture (or after a session reset), send them back rather than
     // rendering a form full of empty fields with no context.
-    if (!hasSavedValues()) {
-      navigate({ to: "/capture", replace: true });
-      return;
-    }
-    setValues(loadValues());
-    setPopulation(loadPopulation());
-    setReady(true);
-  }, [navigate]);
+    if (!hasValues) navigate({ to: "/capture", replace: true });
+  }, [hasValues, navigate]);
 
   const meta = useMemo(() => getParamMeta(population), [population]);
 
-
   const update = (k: keyof TegValues, raw: string) => {
-    const next = raw.trim() === "" ? null : Number(raw);
-    setValues((v) => ({ ...v, [k]: Number.isNaN(next as number) ? null : next }));
+    const parsed = raw.trim() === "" ? null : Number(raw);
+    const next = Number.isNaN(parsed as number) ? null : parsed;
+    saveValues({ ...values, [k]: next });
   };
 
   const issues = useMemo(() => validateAll(values), [values]);
@@ -75,18 +70,21 @@ function Review() {
 
   const submit = () => {
     if (errorCount > 0) return;
-    saveValues(values);
-    savePopulation(population);
     navigate({ to: "/results" });
   };
 
   const togglePregnant = (checked: boolean) => {
     const next: Population = checked ? "pregnant" : "standard";
-    setPopulation(next);
     savePopulation(next);
   };
 
-  if (!ready) return null;
+  const startOver = () => {
+    if (!window.confirm("Discard the current values and return to capture?")) return;
+    clearValues();
+    navigate({ to: "/capture", replace: true });
+  };
+
+  if (!hasValues) return null;
 
   return (
     <main className="min-h-screen px-4 py-8">
@@ -112,11 +110,10 @@ function Review() {
               : "border-border bg-card"
           }`}
         >
-          <input
-            type="checkbox"
+          <Checkbox
             checked={population === "pregnant"}
-            onChange={(e) => togglePregnant(e.target.checked)}
-            className="mt-0.5 h-4 w-4 accent-[color:var(--primary)]"
+            onCheckedChange={(c) => togglePregnant(c === true)}
+            className="mt-0.5"
           />
           <div className="text-sm">
             <div className="font-semibold text-foreground">
@@ -131,24 +128,26 @@ function Review() {
         </label>
 
         {(errorCount > 0 || warningCount > 0) && (
-          <div
-            className={`rounded-md border px-3 py-2 text-sm ${
+          <Alert
+            variant={errorCount > 0 ? "destructive" : "default"}
+            className={
               errorCount > 0
-                ? "border-destructive/40 bg-destructive/10 text-destructive"
-                : "border-warning/40 bg-warning/10 text-warning"
-            }`}
+                ? undefined
+                : "border-warning/40 bg-warning/10 text-warning [&>svg]:text-warning"
+            }
           >
+            <AlertTriangle className="h-4 w-4" />
             {errorCount > 0 && (
-              <p className="font-semibold">
+              <AlertTitle>
                 {errorCount} value{errorCount === 1 ? "" : "s"} likely incorrect — fix before continuing.
-              </p>
+              </AlertTitle>
             )}
             {warningCount > 0 && (
-              <p className={errorCount > 0 ? "mt-1 text-xs" : "text-xs"}>
+              <AlertDescription>
                 {warningCount} value{warningCount === 1 ? "" : "s"} flagged for review.
-              </p>
+              </AlertDescription>
             )}
-          </div>
+          </Alert>
         )}
 
         <div className="space-y-4">
@@ -174,7 +173,7 @@ function Review() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <input
+                    <Input
                       type="number"
                       inputMode="decimal"
                       step="0.1"
@@ -182,7 +181,7 @@ function Review() {
                       max={m.plausible[1]}
                       value={values[k] ?? ""}
                       onChange={(e) => update(k, e.target.value)}
-                      className="w-24 rounded-md border border-input bg-background px-2 py-1.5 text-right text-sm"
+                      className="w-24 text-right"
                       placeholder="—"
                     />
                     <span className="w-8 text-xs text-muted-foreground">
@@ -196,8 +195,7 @@ function Review() {
                       issue.severity === "error" ? "text-destructive" : "text-warning"
                     }`}
                   >
-                    {issue.severity === "error" ? "⚠ " : "⚠ "}
-                    {issue.message}
+                    ⚠ {issue.message}
                   </p>
                 )}
               </div>
@@ -205,17 +203,18 @@ function Review() {
           })}
         </div>
 
-        <button
-          onClick={submit}
-          disabled={errorCount > 0}
-          className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {errorCount > 0
-            ? "Fix flagged values to continue"
-            : warningCount > 0
-              ? "Generate recommendation (review warnings first)"
-              : "Generate recommendation"}
-        </button>
+        <div className="flex flex-col gap-2">
+          <Button onClick={submit} disabled={errorCount > 0} className="w-full">
+            {errorCount > 0
+              ? "Fix flagged values to continue"
+              : warningCount > 0
+                ? "Generate recommendation (review warnings first)"
+                : "Generate recommendation"}
+          </Button>
+          <Button variant="outline" onClick={startOver} className="w-full">
+            Discard and start over
+          </Button>
+        </div>
       </div>
     </main>
   );
