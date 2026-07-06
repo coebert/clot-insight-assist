@@ -8,6 +8,7 @@ import {
 } from "@/lib/teg-store";
 import {
   getParamMeta,
+  PLAUSIBLE,
   validateAll,
   type Population,
   type TegValues,
@@ -169,7 +170,7 @@ function Review() {
                       {m.description}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      Normal{population === "pregnant" ? " (pregnancy)" : ""}: {m.normal} {m.unit} · Plausible: {m.plausible[0]}–{m.plausible[1]} {m.unit}
+                      Normal{population === "pregnant" ? " (pregnancy)" : ""}: {m.normal} {m.unit} · Plausible: {PLAUSIBLE[k][0]}–{PLAUSIBLE[k][1]} {m.unit}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -178,7 +179,7 @@ function Review() {
                       inputMode="decimal"
                       step="0.1"
                       min={0}
-                      max={m.plausible[1]}
+                      max={PLAUSIBLE[k][1]}
                       value={values[k] ?? ""}
                       onChange={(e) => update(k, e.target.value)}
                       className="w-24 text-right"

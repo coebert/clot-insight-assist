@@ -19,9 +19,6 @@ type ParamMeta = {
   unit: string;
   normal: string;
   description: string;
-  // Physiologically plausible range — anything outside is almost certainly
-  // an OCR mistake or unit error and must be confirmed.
-  plausible: [number, number];
 };
 
 // Empty-values sentinel — lives with the schema, not the store, so any
@@ -50,35 +47,30 @@ const STANDARD_META: Record<keyof TegValues, ParamMeta> = {
     unit: "min",
     normal: "4.6 – 9.1",
     description: "Citrated Kaolin reaction time — clotting factor activity",
-    plausible: [0.5, 60],
   },
   CKH_R: {
     label: "CKH.R",
     unit: "min",
     normal: "4.6 – 9.1",
     description: "Kaolin + Heparinase R — compared to CK.R to detect heparin",
-    plausible: [0.5, 60],
   },
   CRT_MA: {
     label: "CRT.MA",
     unit: "mm",
     normal: "52 – 70",
     description: "RapidTEG maximum amplitude — overall clot strength (platelets)",
-    plausible: [0, 100],
   },
   CFF_MA: {
     label: "CFF.MA",
     unit: "mm",
     normal: "15 – 32",
     description: "Functional Fibrinogen MA — fibrinogen contribution",
-    plausible: [0, 60],
   },
   CK_LY30: {
     label: "CK.LY30",
     unit: "%",
     normal: "< 3",
     description: "Percent lysis at 30 minutes — fibrinolysis",
-    plausible: [0, 100],
   },
 };
 
@@ -150,7 +142,7 @@ export function validateValue(
     return { key, severity: "error", message: "Negative value is not possible." };
   }
   const meta = STANDARD_META[key];
-  const [lo, hi] = meta.plausible;
+  const [lo, hi] = PLAUSIBLE[key];
   if (value < lo || value > hi) {
     return {
       key,
