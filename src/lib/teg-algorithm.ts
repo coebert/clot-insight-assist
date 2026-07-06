@@ -198,7 +198,7 @@ export function interpret(
   const th = thresholdsFor(population);
   const recs: Recommendation[] = [];
   const missing = (Object.keys(v) as (keyof TegValues)[]).filter(
-    (k) => v[k] === null || Number.isNaN(v[k] as number),
+    (k) => v[k] === null,
   );
 
   // Small helper — avoids string-concatenating optional context onto every
