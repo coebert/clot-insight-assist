@@ -193,7 +193,7 @@ function Review() {
                 {issue && (
                   <p
                     className={`mt-2 text-xs ${
-                      issue.severity === "error" ? "text-destructive" : "text-amber-300"
+                      issue.severity === "error" ? "text-destructive" : "text-warning"
                     }`}
                   >
                     {issue.severity === "error" ? "⚠ " : "⚠ "}
