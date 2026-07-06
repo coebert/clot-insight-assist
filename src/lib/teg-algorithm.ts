@@ -209,10 +209,14 @@ export function interpret(
     (k) => v[k] === null || Number.isNaN(v[k] as number),
   );
 
-  const pregNote =
-    population === "pregnant"
-      ? " Pregnancy-adjusted threshold (third-trimester physiology)."
-      : "";
+  // Small helper — avoids string-concatenating optional context onto every
+  // rationale by hand (easy to forget, easy to double-space).
+  const rationale = (base: string, pregnancyOnly?: string) =>
+    population === "pregnant" && pregnancyOnly
+      ? `${base} ${pregnancyOnly}`
+      : base;
+  const pregNote = " Pregnancy-adjusted threshold (third-trimester physiology).";
+
 
   // 1. Prolonged CK.R → FFP
   if (v.CK_R !== null && v.CK_R > th.R_prolonged) {
