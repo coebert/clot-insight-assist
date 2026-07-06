@@ -47,35 +47,30 @@ const STANDARD_META: Record<keyof TegValues, ParamMeta> = {
     unit: "min",
     normal: "4.6 – 9.1",
     description: "Citrated Kaolin reaction time — clotting factor activity",
-    plausible: [0.5, 60],
   },
   CKH_R: {
     label: "CKH.R",
     unit: "min",
     normal: "4.6 – 9.1",
     description: "Kaolin + Heparinase R — compared to CK.R to detect heparin",
-    plausible: [0.5, 60],
   },
   CRT_MA: {
     label: "CRT.MA",
     unit: "mm",
     normal: "52 – 70",
     description: "RapidTEG maximum amplitude — overall clot strength (platelets)",
-    plausible: [0, 100],
   },
   CFF_MA: {
     label: "CFF.MA",
     unit: "mm",
     normal: "15 – 32",
     description: "Functional Fibrinogen MA — fibrinogen contribution",
-    plausible: [0, 60],
   },
   CK_LY30: {
     label: "CK.LY30",
     unit: "%",
     normal: "< 3",
     description: "Percent lysis at 30 minutes — fibrinolysis",
-    plausible: [0, 100],
   },
 };
 
