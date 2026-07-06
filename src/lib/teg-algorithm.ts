@@ -283,9 +283,10 @@ export function interpret(
       trigger: `CRT.MA = ${v.CRT_MA} mm (< ${th.platelet_low} mm) with CFF.MA ≥ ${th.fib_low} mm`,
       product: "Platelets",
       dose: "1 adult therapeutic dose (≈1 apheresis unit or pool of 4–6)",
-      rationale:
-        "Low overall MA with adequate fibrinogen MA isolates the deficit to platelet number/function." +
-        pregNote,
+      rationale: rationale(
+        "Low overall MA with adequate fibrinogen MA isolates the deficit to platelet number/function.",
+        pregNote.trim(),
+      ),
     });
   }
 
