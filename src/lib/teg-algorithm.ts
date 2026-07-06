@@ -227,9 +227,10 @@ export function interpret(
       trigger: `CK.R = ${v.CK_R} min (> ${th.R_prolonged} min)`,
       product: "Fresh Frozen Plasma (FFP)",
       dose: "10–15 mL/kg",
-      rationale:
-        "Prolonged R time on the kaolin channel reflects deficiency of clotting factors; FFP replaces factors." +
-        pregNote,
+      rationale: rationale(
+        "Prolonged R time on the kaolin channel reflects deficiency of clotting factors; FFP replaces factors.",
+        pregNote.trim(),
+      ),
     });
   }
 
