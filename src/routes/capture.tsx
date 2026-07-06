@@ -106,29 +106,30 @@ function Capture() {
   );
 
   const scanLoop = useCallback(async () => {
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     while (!cancelledRef.current) {
       const video = videoRef.current;
       if (!video || video.readyState < 2) {
-        await new Promise((r) => setTimeout(r, 300));
+        await sleep(300);
         continue;
       }
       if (inFlightRef.current) {
-        await new Promise((r) => setTimeout(r, 200));
+        await sleep(200);
         continue;
       }
       inFlightRef.current = true;
       try {
         const dataUrl = await captureFrameAsDataUrl(video);
+        if (cancelledRef.current) return;
         if (!dataUrl) {
-          inFlightRef.current = false;
-          await new Promise((r) => setTimeout(r, SCAN_INTERVAL_MS));
+          await sleep(SCAN_INTERVAL_MS);
           continue;
         }
         let result: ExtractResult;
         try {
           result = await extract({ data: { imageDataUrl: dataUrl } });
         } catch (e) {
-          // Per-frame failure — keep scanning unless rate-limited or auth.
+          if (cancelledRef.current) return;
           const msg = e instanceof Error ? e.message : "Extraction failed";
           if (/rate limit|credits/i.test(msg)) {
             setError(msg);
@@ -136,10 +137,10 @@ function Capture() {
             stopCamera();
             return;
           }
-          inFlightRef.current = false;
-          await new Promise((r) => setTimeout(r, SCAN_INTERVAL_MS));
+          await sleep(SCAN_INTERVAL_MS);
           continue;
         }
+        if (cancelledRef.current) return;
         setScanCount((n) => n + 1);
         const vals: TegValues = {
           CK_R: result.CK_R,
@@ -155,13 +156,21 @@ function Capture() {
         if (read >= MIN_VALUES_PER_FRAME) {
           const prev = lastReadRef.current;
           if (prev) {
-            const { agreeCount } = valuesAgree(prev, vals);
-            if (agreeCount >= MIN_VALUES_PER_FRAME) {
+            const agreed = agreedKeys(prev, vals);
+            if (agreed.size >= MIN_VALUES_PER_FRAME) {
               stableHitsRef.current += 1;
-              if (stableHitsRef.current >= STABILITY_REQUIRED - 1) {
-                // Merge: prefer the newer non-null values.
-                const merged: TegValues = { ...prev };
-                for (const k of KEYS) if (vals[k] !== null) merged[k] = vals[k];
+              // We need STABILITY_REQUIRED consecutive agreeing pairs — i.e.
+              // STABILITY_REQUIRED + 1 frames total. The current frame is
+              // frame #2 of the first pair, so lock in when we've counted
+              // that many pairs.
+              if (stableHitsRef.current >= STABILITY_REQUIRED) {
+                // Merge only keys that actually agreed with the previous
+                // frame — stale non-agreeing values from `prev` must not
+                // silently leak into the confirmed payload.
+                const merged: TegValues = { ...EMPTY_VALUES };
+                for (const k of KEYS) {
+                  if (agreed.has(k) && vals[k] !== null) merged[k] = vals[k];
+                }
                 finishWith(merged);
                 return;
               }
@@ -176,9 +185,10 @@ function Capture() {
       } finally {
         inFlightRef.current = false;
       }
-      await new Promise((r) => setTimeout(r, SCAN_INTERVAL_MS));
+      await sleep(SCAN_INTERVAL_MS);
     }
   }, [extract, finishWith, stopCamera]);
+
 
   const startScanning = useCallback(async () => {
     setError(null);
