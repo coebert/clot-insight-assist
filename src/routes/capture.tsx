@@ -33,19 +33,25 @@ const TOLERANCE = { abs: 0.3, rel: 0.05 }; // 0.3 unit OR 5% — whichever large
 
 const KEYS: (keyof TegValues)[] = ["CK_R", "CKH_R", "CRT_MA", "CFF_MA", "CK_LY30"];
 
-// Return the set of keys where both frames have a value AND the values agree
-// within tolerance. Callers use this both to score stability AND to know
-// which specific keys are safe to carry forward when merging.
-function agreedKeys(a: TegValues, b: TegValues): Set<keyof TegValues> {
-  const agreed = new Set<keyof TegValues>();
-  for (const k of KEYS) {
-    const av = a[k];
-    const bv = b[k];
-    if (av === null || bv === null) continue;
-    const tol = Math.max(TOLERANCE.abs, Math.abs(av) * TOLERANCE.rel);
-    if (Math.abs(av - bv) <= tol) agreed.add(k);
-  }
-  return agreed;
+// A rolling map of per-key confirmations across the whole scan window.
+// Each frame with a value for `k` either agrees with the current candidate
+// (bump `hits`) or replaces it (reset to 1). A key is "confirmed" once its
+// hits reach STABILITY_REQUIRED — and stays confirmed even if a later frame
+// happens to miss that key, so we no longer discard values just because the
+// most recent pair of frames didn't overlap on them.
+type Confirmation = { value: number; hits: number };
+type ConfirmMap = Partial<Record<keyof TegValues, Confirmation>>;
+
+function agrees(a: number, b: number): boolean {
+  const tol = Math.max(TOLERANCE.abs, Math.abs(a) * TOLERANCE.rel);
+  return Math.abs(a - b) <= tol;
+}
+
+function countConfirmed(c: ConfirmMap): number {
+  return KEYS.reduce(
+    (n, k) => n + ((c[k]?.hits ?? 0) >= STABILITY_REQUIRED ? 1 : 0),
+    0,
+  );
 }
 
 function countRead(v: TegValues): number {
@@ -74,8 +80,7 @@ function Capture() {
   const extract = useServerFn(extractTegValues);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const lastReadRef = useRef<TegValues | null>(null);
-  const stableHitsRef = useRef(0);
+  const confirmRef = useRef<ConfirmMap>({});
   const inFlightRef = useRef(false);
   const cancelledRef = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -152,35 +157,30 @@ function Capture() {
         setLatest(vals);
         setLatestNotes(result.notes ?? "");
 
-        const read = countRead(vals);
-        if (read >= MIN_VALUES_PER_FRAME) {
-          const prev = lastReadRef.current;
-          if (prev) {
-            const agreed = agreedKeys(prev, vals);
-            if (agreed.size >= MIN_VALUES_PER_FRAME) {
-              stableHitsRef.current += 1;
-              // We need STABILITY_REQUIRED consecutive agreeing pairs — i.e.
-              // STABILITY_REQUIRED + 1 frames total. The current frame is
-              // frame #2 of the first pair, so lock in when we've counted
-              // that many pairs.
-              if (stableHitsRef.current >= STABILITY_REQUIRED) {
-                // Merge only keys that actually agreed with the previous
-                // frame — stale non-agreeing values from `prev` must not
-                // silently leak into the confirmed payload.
-                const merged: TegValues = { ...EMPTY_VALUES };
-                for (const k of KEYS) {
-                  if (agreed.has(k) && vals[k] !== null) merged[k] = vals[k];
-                }
-                finishWith(merged);
-                return;
-              }
-            } else {
-              stableHitsRef.current = 0;
-            }
+        // Fold this frame into the rolling per-key confirmation map. A key
+        // stays confirmed once it hits STABILITY_REQUIRED, even if later
+        // frames drop it — so partial-overlap frames still make progress.
+        const confirm = confirmRef.current;
+        for (const k of KEYS) {
+          const v = vals[k];
+          if (v === null) continue;
+          const existing = confirm[k];
+          if (existing && agrees(existing.value, v)) {
+            // Update to the most recent reading; the hit count is what matters.
+            confirm[k] = { value: v, hits: existing.hits + 1 };
+          } else {
+            confirm[k] = { value: v, hits: 1 };
           }
-          lastReadRef.current = vals;
-        } else {
-          stableHitsRef.current = 0;
+        }
+
+        if (countConfirmed(confirm) >= MIN_VALUES_PER_FRAME) {
+          const merged: TegValues = { ...EMPTY_VALUES };
+          for (const k of KEYS) {
+            const c = confirm[k];
+            if (c && c.hits >= STABILITY_REQUIRED) merged[k] = c.value;
+          }
+          finishWith(merged);
+          return;
         }
       } finally {
         inFlightRef.current = false;
@@ -194,8 +194,7 @@ function Capture() {
     setError(null);
     setState("starting");
     cancelledRef.current = false;
-    stableHitsRef.current = 0;
-    lastReadRef.current = null;
+    confirmRef.current = {};
     setLatest(EMPTY_VALUES);
     setScanCount(0);
     try {
