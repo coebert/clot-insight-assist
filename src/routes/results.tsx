@@ -35,10 +35,18 @@ function Results() {
   const navigate = useNavigate();
   const [values, setValues] = useState<TegValues>(EMPTY_VALUES);
   const [population, setPopulation] = useState<Population>("standard");
+  const [ready, setReady] = useState(false);
   useEffect(() => {
+    // Route guard — a blank recommendation is worse than sending the user back.
+    if (!hasSavedValues()) {
+      navigate({ to: "/capture", replace: true });
+      return;
+    }
     setValues(loadValues());
     setPopulation(loadPopulation());
-  }, []);
+    setReady(true);
+  }, [navigate]);
+
 
   const meta = useMemo(() => getParamMeta(population), [population]);
   const { recommendations, missing } = useMemo(
