@@ -234,13 +234,13 @@ function AlgorithmPage() {
           </div>
 
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
+            <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by keyword, author, rule, or topic..."
-              className="w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="h-10 pl-9 pr-9"
             />
             {query && (
               <button
@@ -263,7 +263,7 @@ function AlgorithmPage() {
           <div className="space-y-3">
             {filteredRules.map(({ id, label }) => {
               const refs = referencesFor(id).filter((r) =>
-                q ? matchesQuery(r, q) : true
+                q ? matchesQuery(r, q) : true,
               );
               if (refs.length === 0) return null;
               return (
@@ -276,17 +276,7 @@ function AlgorithmPage() {
                   </h3>
                   <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs text-muted-foreground marker:text-primary">
                     {refs.map((r) => (
-                      <li key={r.id} id={`ref-${r.id}`}>
-                        <span>{r.citation}</span>{" "}
-                        <a
-                          href={r.url}
-                          target="_blank"
-                          rel="noreferrer noopener"
-                          className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
-                        >
-                          Source ↗
-                        </a>
-                      </li>
+                      <ReferenceItem key={r.id} r={r} />
                     ))}
                   </ol>
                 </div>
@@ -301,21 +291,12 @@ function AlgorithmPage() {
 
           <details className="rounded-lg border border-border bg-card/40 p-4">
             <summary className="cursor-pointer text-sm font-semibold text-foreground">
-              Full bibliography ({filteredBibliography.length} source{filteredBibliography.length === 1 ? "" : "s"})
+              Full bibliography ({filteredBibliography.length} source
+              {filteredBibliography.length === 1 ? "" : "s"})
             </summary>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs text-muted-foreground marker:text-primary">
               {filteredBibliography.map((r) => (
-                <li key={r.id} id={`ref-${r.id}`}>
-                  <span>{r.citation}</span>{" "}
-                  <a
-                    href={r.url}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
-                  >
-                    Source ↗
-                  </a>
-                </li>
+                <ReferenceItem key={r.id} r={r} />
               ))}
             </ol>
             {q && filteredBibliography.length === 0 && (
@@ -329,19 +310,14 @@ function AlgorithmPage() {
         </section>
 
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Link
-            to="/capture"
-            className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-          >
-            Start a new analysis
-          </Link>
-          <Link
-            to="/"
-            className="inline-flex w-full items-center justify-center rounded-md border border-input bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent"
-          >
-            Home
-          </Link>
+          <Button asChild className="w-full">
+            <Link to="/capture">Start a new analysis</Link>
+          </Button>
+          <Button asChild variant="outline" className="w-full">
+            <Link to="/">Home</Link>
+          </Button>
         </div>
+
       </div>
     </main>
   );
