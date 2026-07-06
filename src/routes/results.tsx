@@ -1,21 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
   CITATION,
   getParamMeta,
   interpret,
-  type Population,
   type TegValues,
 } from "@/lib/teg-algorithm";
-import {
-  clearValues,
-  hasSavedValues,
-  loadPopulation,
-  loadValues,
-  EMPTY_VALUES,
-} from "@/lib/teg-store";
+import { clearValues, useTegSession } from "@/lib/teg-store";
 import { DisclaimerBanner } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/results")({
   head: () => ({
@@ -33,26 +27,19 @@ export const Route = createFileRoute("/results")({
 
 function Results() {
   const navigate = useNavigate();
-  const [values, setValues] = useState<TegValues>(EMPTY_VALUES);
-  const [population, setPopulation] = useState<Population>("standard");
-  const [ready, setReady] = useState(false);
+  const { values, population, hasValues } = useTegSession();
+
   useEffect(() => {
     // Route guard — a blank recommendation is worse than sending the user back.
-    if (!hasSavedValues()) {
-      navigate({ to: "/capture", replace: true });
-      return;
-    }
-    setValues(loadValues());
-    setPopulation(loadPopulation());
-    setReady(true);
-  }, [navigate]);
-
+    if (!hasValues) navigate({ to: "/capture", replace: true });
+  }, [hasValues, navigate]);
 
   const meta = useMemo(() => getParamMeta(population), [population]);
   const { recommendations, missing } = useMemo(
     () => interpret(values, population),
     [values, population],
   );
+
 
   const startOver = () => {
     // Explicit confirm — the recommendation is transient and can't be recovered
