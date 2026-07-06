@@ -86,6 +86,8 @@ function Review() {
     savePopulation(next);
   };
 
+  if (!ready) return null;
+
   return (
     <main className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-xl space-y-6">
