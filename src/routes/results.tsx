@@ -53,7 +53,7 @@ function Results() {
     navigate({ to: "/" });
   };
 
-  if (!ready) return null;
+  if (!hasValues) return null;
 
   return (
     <main className="min-h-screen px-4 py-8 print:py-2">
