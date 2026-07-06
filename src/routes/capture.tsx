@@ -97,7 +97,13 @@ function Capture() {
     streamRef.current = null;
   }, []);
 
-  useEffect(() => () => stopCamera(), [stopCamera]);
+  useEffect(
+    () => () => {
+      stopCamera();
+      singlePhotoAttemptRef.current = null;
+    },
+    [stopCamera],
+  );
 
   const finishWith = useCallback(
     (vals: TegValues) => {
