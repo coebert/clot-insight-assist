@@ -1,11 +1,43 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 import { Mermaid } from "@/components/Mermaid";
 import { DisclaimerBanner } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
 import { CITATION } from "@/lib/teg-algorithm";
 import { REFERENCES, referencesFor, type Reference } from "@/lib/teg-references";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+// Small local hook — avoids re-filtering the reference library on every
+// keystroke while the user is still typing.
+function useDebouncedValue<T>(value: T, delay = 150): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
+
+// Renders one reference list item — used by both the per-rule cards and the
+// full bibliography, so citation formatting stays consistent.
+function ReferenceItem({ r }: { r: Reference }) {
+  return (
+    <li id={`ref-${r.id}`}>
+      <span>{r.citation}</span>{" "}
+      <a
+        href={r.url}
+        target="_blank"
+        rel="noreferrer noopener"
+        className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+      >
+        Source ↗
+      </a>
+    </li>
+  );
+}
+
 
 const RULES_IN_ORDER: { id: string; label: string }[] = [
   { id: "channel-definitions", label: "TEG 6s channels & parameter definitions" },
