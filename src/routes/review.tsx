@@ -159,7 +159,7 @@ function Review() {
               issue?.severity === "error"
                 ? "border-destructive ring-1 ring-destructive/40"
                 : issue?.severity === "warning"
-                  ? "border-amber-400 ring-1 ring-amber-300/40"
+                  ? "border-warning ring-1 ring-warning/40"
                   : "";
             return (
               <div key={k} className={`rounded-lg border bg-card p-4 ${ring}`}>
