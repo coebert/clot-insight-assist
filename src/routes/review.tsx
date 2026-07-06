@@ -135,7 +135,7 @@ function Review() {
             className={`rounded-md border px-3 py-2 text-sm ${
               errorCount > 0
                 ? "border-destructive/40 bg-destructive/10 text-destructive"
-                : "border-amber-500/40 bg-amber-500/10 text-amber-200"
+                : "border-warning/40 bg-warning/10 text-warning"
             }`}
           >
             {errorCount > 0 && (
