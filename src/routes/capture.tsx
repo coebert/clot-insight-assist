@@ -81,7 +81,6 @@ function Capture() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const confirmRef = useRef<ConfirmMap>({});
-  const inFlightRef = useRef(false);
   const cancelledRef = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
