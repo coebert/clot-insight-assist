@@ -27,27 +27,31 @@ const SCAN_INTERVAL_MS = 2500;
 const MAX_EDGE_PX = 900;
 // Require this many values read in a single frame before considering it.
 const MIN_VALUES_PER_FRAME = 3;
-// Require N consecutive frames where the same keys agree within tolerance.
+// Require this many consecutive frames whose overlapping keys agree.
 const STABILITY_REQUIRED = 2;
 const TOLERANCE = { abs: 0.3, rel: 0.05 }; // 0.3 unit OR 5% — whichever larger.
 
 const KEYS: (keyof TegValues)[] = ["CK_R", "CKH_R", "CRT_MA", "CFF_MA", "CK_LY30"];
 
-function valuesAgree(a: TegValues, b: TegValues): { agreeCount: number } {
-  let agree = 0;
+// Return the set of keys where both frames have a value AND the values agree
+// within tolerance. Callers use this both to score stability AND to know
+// which specific keys are safe to carry forward when merging.
+function agreedKeys(a: TegValues, b: TegValues): Set<keyof TegValues> {
+  const agreed = new Set<keyof TegValues>();
   for (const k of KEYS) {
     const av = a[k];
     const bv = b[k];
     if (av === null || bv === null) continue;
     const tol = Math.max(TOLERANCE.abs, Math.abs(av) * TOLERANCE.rel);
-    if (Math.abs(av - bv) <= tol) agree++;
+    if (Math.abs(av - bv) <= tol) agreed.add(k);
   }
-  return { agreeCount: agree };
+  return agreed;
 }
 
 function countRead(v: TegValues): number {
   return KEYS.reduce((n, k) => n + (v[k] !== null ? 1 : 0), 0);
 }
+
 
 async function captureFrameAsDataUrl(video: HTMLVideoElement): Promise<string | null> {
   if (!video.videoWidth || !video.videoHeight) return null;
