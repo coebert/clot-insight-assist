@@ -9,6 +9,7 @@ import {
 } from "@/lib/teg-algorithm";
 import {
   clearValues,
+  hasSavedValues,
   loadPopulation,
   loadValues,
   EMPTY_VALUES,
@@ -34,10 +35,18 @@ function Results() {
   const navigate = useNavigate();
   const [values, setValues] = useState<TegValues>(EMPTY_VALUES);
   const [population, setPopulation] = useState<Population>("standard");
+  const [ready, setReady] = useState(false);
   useEffect(() => {
+    // Route guard — a blank recommendation is worse than sending the user back.
+    if (!hasSavedValues()) {
+      navigate({ to: "/capture", replace: true });
+      return;
+    }
     setValues(loadValues());
     setPopulation(loadPopulation());
-  }, []);
+    setReady(true);
+  }, [navigate]);
+
 
   const meta = useMemo(() => getParamMeta(population), [population]);
   const { recommendations, missing } = useMemo(
@@ -46,9 +55,18 @@ function Results() {
   );
 
   const startOver = () => {
+    // Explicit confirm — the recommendation is transient and can't be recovered
+    // once cleared. Losing it accidentally on a mis-tap would be a real
+    // clinical annoyance mid-case.
+    const ok =
+      typeof window === "undefined" ||
+      window.confirm("Clear the current TEG values and start a new case?");
+    if (!ok) return;
     clearValues();
     navigate({ to: "/" });
   };
+
+  if (!ready) return null;
 
   return (
     <main className="min-h-screen px-4 py-8 print:py-2">
@@ -84,7 +102,7 @@ function Results() {
         </section>
 
         {missing.length > 0 && (
-          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
             Missing values: {missing.map((k) => meta[k].label).join(", ")}.
             Rules requiring these parameters were skipped.
           </div>

@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
+  hasSavedValues,
   loadPopulation,
   loadValues,
   savePopulation,
@@ -35,13 +36,23 @@ function Review() {
   const navigate = useNavigate();
   const [values, setValues] = useState<TegValues>(EMPTY_VALUES);
   const [population, setPopulation] = useState<Population>("standard");
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // Route guard: if the user landed here directly without going through
+    // /capture (or after a session reset), send them back rather than
+    // rendering a form full of empty fields with no context.
+    if (!hasSavedValues()) {
+      navigate({ to: "/capture", replace: true });
+      return;
+    }
     setValues(loadValues());
     setPopulation(loadPopulation());
-  }, []);
+    setReady(true);
+  }, [navigate]);
 
   const meta = useMemo(() => getParamMeta(population), [population]);
+
 
   const update = (k: keyof TegValues, raw: string) => {
     const next = raw.trim() === "" ? null : Number(raw);
@@ -74,6 +85,8 @@ function Review() {
     setPopulation(next);
     savePopulation(next);
   };
+
+  if (!ready) return null;
 
   return (
     <main className="min-h-screen px-4 py-8">
@@ -122,7 +135,7 @@ function Review() {
             className={`rounded-md border px-3 py-2 text-sm ${
               errorCount > 0
                 ? "border-destructive/40 bg-destructive/10 text-destructive"
-                : "border-amber-500/40 bg-amber-500/10 text-amber-200"
+                : "border-warning/40 bg-warning/10 text-warning"
             }`}
           >
             {errorCount > 0 && (
@@ -146,7 +159,7 @@ function Review() {
               issue?.severity === "error"
                 ? "border-destructive ring-1 ring-destructive/40"
                 : issue?.severity === "warning"
-                  ? "border-amber-400 ring-1 ring-amber-300/40"
+                  ? "border-warning ring-1 ring-warning/40"
                   : "";
             return (
               <div key={k} className={`rounded-lg border bg-card p-4 ${ring}`}>
@@ -180,7 +193,7 @@ function Review() {
                 {issue && (
                   <p
                     className={`mt-2 text-xs ${
-                      issue.severity === "error" ? "text-destructive" : "text-amber-300"
+                      issue.severity === "error" ? "text-destructive" : "text-warning"
                     }`}
                   >
                     {issue.severity === "error" ? "⚠ " : "⚠ "}
