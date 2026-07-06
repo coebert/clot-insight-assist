@@ -302,11 +302,10 @@ export function interpret(
         population === "pregnant"
           ? "1 g IV over 10 min (WOMAN trial regimen for PPH); repeat 1 g if bleeding continues after 30 min"
           : "1 g IV over 10 min, then 1 g over 8 h (CRASH-2 regimen) or per local protocol",
-      rationale:
-        "Elevated LY30 indicates accelerated clot breakdown." +
-        (population === "pregnant"
-          ? " Pregnancy is normally hypofibrinolytic, so any rise above ~2.6% is more strongly suggestive of pathological fibrinolysis."
-          : ""),
+      rationale: rationale(
+        "Elevated LY30 indicates accelerated clot breakdown.",
+        "Pregnancy is normally hypofibrinolytic, so any rise above ~2.6% is more strongly suggestive of pathological fibrinolysis.",
+      ),
     });
   }
 
