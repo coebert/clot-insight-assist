@@ -117,67 +117,63 @@ function Capture() {
         await sleep(300);
         continue;
       }
+      const dataUrl = await captureFrameAsDataUrl(video);
+      if (cancelledRef.current) return;
+      if (!dataUrl) {
+        await sleep(SCAN_INTERVAL_MS);
+        continue;
+      }
+      let result: ExtractResult;
       try {
-        const dataUrl = await captureFrameAsDataUrl(video);
+        result = await extract({ data: { imageDataUrl: dataUrl } });
+      } catch (e) {
         if (cancelledRef.current) return;
-        if (!dataUrl) {
-          await sleep(SCAN_INTERVAL_MS);
-          continue;
-        }
-        let result: ExtractResult;
-        try {
-          result = await extract({ data: { imageDataUrl: dataUrl } });
-        } catch (e) {
-          if (cancelledRef.current) return;
-          const msg = e instanceof Error ? e.message : "Extraction failed";
-          if (/rate limit|credits/i.test(msg)) {
-            setError(msg);
-            setState("error");
-            stopCamera();
-            return;
-          }
-          await sleep(SCAN_INTERVAL_MS);
-          continue;
-        }
-        if (cancelledRef.current) return;
-        setScanCount((n) => n + 1);
-        const vals: TegValues = {
-          CK_R: result.CK_R,
-          CKH_R: result.CKH_R,
-          CRT_MA: result.CRT_MA,
-          CFF_MA: result.CFF_MA,
-          CK_LY30: result.CK_LY30,
-        };
-        setLatest(vals);
-        setLatestNotes(result.notes ?? "");
-
-        // Fold this frame into the rolling per-key confirmation map. A key
-        // stays confirmed once it hits STABILITY_REQUIRED, even if later
-        // frames drop it — so partial-overlap frames still make progress.
-        const confirm = confirmRef.current;
-        for (const k of KEYS) {
-          const v = vals[k];
-          if (v === null) continue;
-          const existing = confirm[k];
-          if (existing && agrees(existing.value, v)) {
-            // Update to the most recent reading; the hit count is what matters.
-            confirm[k] = { value: v, hits: existing.hits + 1 };
-          } else {
-            confirm[k] = { value: v, hits: 1 };
-          }
-        }
-
-        if (countConfirmed(confirm) >= MIN_VALUES_PER_FRAME) {
-          const merged: TegValues = { ...EMPTY_VALUES };
-          for (const k of KEYS) {
-            const c = confirm[k];
-            if (c && c.hits >= STABILITY_REQUIRED) merged[k] = c.value;
-          }
-          finishWith(merged);
+        const msg = e instanceof Error ? e.message : "Extraction failed";
+        if (/rate limit|credits/i.test(msg)) {
+          setError(msg);
+          setState("error");
+          stopCamera();
           return;
         }
-      } finally {
-        inFlightRef.current = false;
+        await sleep(SCAN_INTERVAL_MS);
+        continue;
+      }
+      if (cancelledRef.current) return;
+      setScanCount((n) => n + 1);
+      const vals: TegValues = {
+        CK_R: result.CK_R,
+        CKH_R: result.CKH_R,
+        CRT_MA: result.CRT_MA,
+        CFF_MA: result.CFF_MA,
+        CK_LY30: result.CK_LY30,
+      };
+      setLatest(vals);
+      setLatestNotes(result.notes ?? "");
+
+      // Fold this frame into the rolling per-key confirmation map. A key
+      // stays confirmed once it hits STABILITY_REQUIRED, even if later
+      // frames drop it — so partial-overlap frames still make progress.
+      const confirm = confirmRef.current;
+      for (const k of KEYS) {
+        const v = vals[k];
+        if (v === null) continue;
+        const existing = confirm[k];
+        if (existing && agrees(existing.value, v)) {
+          // Update to the most recent reading; the hit count is what matters.
+          confirm[k] = { value: v, hits: existing.hits + 1 };
+        } else {
+          confirm[k] = { value: v, hits: 1 };
+        }
+      }
+
+      if (countConfirmed(confirm) >= MIN_VALUES_PER_FRAME) {
+        const merged: TegValues = { ...EMPTY_VALUES };
+        for (const k of KEYS) {
+          const c = confirm[k];
+          if (c && c.hits >= STABILITY_REQUIRED) merged[k] = c.value;
+        }
+        finishWith(merged);
+        return;
       }
       await sleep(SCAN_INTERVAL_MS);
     }
