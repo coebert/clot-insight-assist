@@ -80,8 +80,7 @@ function Capture() {
   const extract = useServerFn(extractTegValues);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const lastReadRef = useRef<TegValues | null>(null);
-  const stableHitsRef = useRef(0);
+  const confirmRef = useRef<ConfirmMap>({});
   const inFlightRef = useRef(false);
   const cancelledRef = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
