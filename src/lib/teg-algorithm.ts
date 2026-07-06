@@ -19,9 +19,6 @@ type ParamMeta = {
   unit: string;
   normal: string;
   description: string;
-  // Physiologically plausible range — anything outside is almost certainly
-  // an OCR mistake or unit error and must be confirmed.
-  plausible: [number, number];
 };
 
 // Empty-values sentinel — lives with the schema, not the store, so any
