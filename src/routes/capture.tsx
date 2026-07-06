@@ -117,11 +117,6 @@ function Capture() {
         await sleep(300);
         continue;
       }
-      if (inFlightRef.current) {
-        await sleep(200);
-        continue;
-      }
-      inFlightRef.current = true;
       try {
         const dataUrl = await captureFrameAsDataUrl(video);
         if (cancelledRef.current) return;
