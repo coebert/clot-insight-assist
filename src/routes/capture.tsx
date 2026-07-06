@@ -157,35 +157,30 @@ function Capture() {
         setLatest(vals);
         setLatestNotes(result.notes ?? "");
 
-        const read = countRead(vals);
-        if (read >= MIN_VALUES_PER_FRAME) {
-          const prev = lastReadRef.current;
-          if (prev) {
-            const agreed = agreedKeys(prev, vals);
-            if (agreed.size >= MIN_VALUES_PER_FRAME) {
-              stableHitsRef.current += 1;
-              // We need STABILITY_REQUIRED consecutive agreeing pairs — i.e.
-              // STABILITY_REQUIRED + 1 frames total. The current frame is
-              // frame #2 of the first pair, so lock in when we've counted
-              // that many pairs.
-              if (stableHitsRef.current >= STABILITY_REQUIRED) {
-                // Merge only keys that actually agreed with the previous
-                // frame — stale non-agreeing values from `prev` must not
-                // silently leak into the confirmed payload.
-                const merged: TegValues = { ...EMPTY_VALUES };
-                for (const k of KEYS) {
-                  if (agreed.has(k) && vals[k] !== null) merged[k] = vals[k];
-                }
-                finishWith(merged);
-                return;
-              }
-            } else {
-              stableHitsRef.current = 0;
-            }
+        // Fold this frame into the rolling per-key confirmation map. A key
+        // stays confirmed once it hits STABILITY_REQUIRED, even if later
+        // frames drop it — so partial-overlap frames still make progress.
+        const confirm = confirmRef.current;
+        for (const k of KEYS) {
+          const v = vals[k];
+          if (v === null) continue;
+          const existing = confirm[k];
+          if (existing && agrees(existing.value, v)) {
+            // Update to the most recent reading; the hit count is what matters.
+            confirm[k] = { value: v, hits: existing.hits + 1 };
+          } else {
+            confirm[k] = { value: v, hits: 1 };
           }
-          lastReadRef.current = vals;
-        } else {
-          stableHitsRef.current = 0;
+        }
+
+        if (countConfirmed(confirm) >= MIN_VALUES_PER_FRAME) {
+          const merged: TegValues = { ...EMPTY_VALUES };
+          for (const k of KEYS) {
+            const c = confirm[k];
+            if (c && c.hits >= STABILITY_REQUIRED) merged[k] = c.value;
+          }
+          finishWith(merged);
+          return;
         }
       } finally {
         inFlightRef.current = false;
