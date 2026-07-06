@@ -9,6 +9,7 @@ import {
 } from "@/lib/teg-algorithm";
 import {
   clearValues,
+  hasSavedValues,
   loadPopulation,
   loadValues,
   EMPTY_VALUES,
