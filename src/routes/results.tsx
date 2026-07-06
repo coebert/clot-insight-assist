@@ -55,9 +55,18 @@ function Results() {
   );
 
   const startOver = () => {
+    // Explicit confirm — the recommendation is transient and can't be recovered
+    // once cleared. Losing it accidentally on a mis-tap would be a real
+    // clinical annoyance mid-case.
+    const ok =
+      typeof window === "undefined" ||
+      window.confirm("Clear the current TEG values and start a new case?");
+    if (!ok) return;
     clearValues();
     navigate({ to: "/" });
   };
+
+  if (!ready) return null;
 
   return (
     <main className="min-h-screen px-4 py-8 print:py-2">
