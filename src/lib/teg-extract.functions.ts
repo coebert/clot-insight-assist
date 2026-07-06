@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { PARAM_META, type TegValues } from "./teg-algorithm";
+import { PLAUSIBLE, type TegValues } from "./teg-algorithm";
+
+const REQUEST_TIMEOUT_MS = 30_000;
+const AI_MODEL = "google/gemini-3-flash-preview";
+const AI_ENDPOINT = "https://ai.gateway.lovable.dev/v1/chat/completions";
+
 
 
 const InputSchema = z.object({
