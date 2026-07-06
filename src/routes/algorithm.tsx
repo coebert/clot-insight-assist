@@ -151,7 +151,11 @@ function matchesQuery(r: Reference, query: string): boolean {
 
 function AlgorithmPage() {
   const [query, setQuery] = useState("");
-  const q = query.trim().toLowerCase();
+  // Debounce the *filter* input, not the visible text — the input still feels
+  // responsive but heavy reference-list filtering only runs after the user
+  // pauses typing.
+  const debounced = useDebouncedValue(query, 150);
+  const q = debounced.trim().toLowerCase();
 
   const filteredRules = useMemo(() => {
     if (!q) return RULES_IN_ORDER;
@@ -167,6 +171,7 @@ function AlgorithmPage() {
     if (!q) return REFERENCES;
     return REFERENCES.filter((r) => matchesQuery(r, q));
   }, [q]);
+
 
   return (
     <main className="min-h-screen px-4 py-8">
