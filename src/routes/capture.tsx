@@ -219,6 +219,8 @@ function Capture() {
       setState("scanning");
       void scanLoop(runId);
     } catch (e) {
+      // Release any track that was granted before the failure.
+      stopCamera();
       setState("error");
       const msg = e instanceof Error ? e.message : "Could not access camera";
       setError(
@@ -227,7 +229,7 @@ function Capture() {
           : msg,
       );
     }
-  }, [scanLoop]);
+  }, [scanLoop, stopCamera]);
 
   const stopScanning = useCallback(() => {
     stopCamera();
