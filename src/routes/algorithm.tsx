@@ -74,7 +74,9 @@ const MAIN_FLOW = `flowchart TD
   R1 -- Yes --> Hep{CK.R − CKH.R > 2 min?}
   Hep -- Yes --> Prot["**Protamine**<br/>Residual heparin<br/>(per local protocol)"]
   Hep -- No --> FFP["**FFP** 10–15 mL/kg<br/>Factor deficiency"]
-  Prot --> R2
+  Prot --> Resid{CKH.R still > R_max?}
+  Resid -- Yes --> FFP
+  Resid -- No --> R2
   FFP --> R2
 
   R2{CFF.MA < Fib_low?}
