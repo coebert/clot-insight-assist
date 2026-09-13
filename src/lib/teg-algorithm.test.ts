@@ -204,7 +204,7 @@ describe("rule 5 — elevated LY30 → tranexamic acid", () => {
 describe("interpret — combinations", () => {
   it("fires multiple independent rules at once", () => {
     const out = ids(
-      withValues({ CK_R: 15, CKH_R: 14, CFF_MA: 9, CK_LY30: 12 }),
+      withValues({ CK_R: 15, CKH_R: 12, CFF_MA: 9, CK_LY30: 12 }),
     );
     expect(out).toEqual(
       expect.arrayContaining(["ffp", "protamine", "cryo", "tranexamic"]),
