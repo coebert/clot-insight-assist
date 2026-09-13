@@ -100,7 +100,7 @@ const MAIN_FLOW = `flowchart TD
   classDef decision fill:#1f2230,stroke:#6b7280,color:#fafafa;
   classDef start fill:#0f1115,stroke:#dc2638,color:#fafafa;
   class Prot,FFP,Cryo,Plt,TXA action;
-  class R1,Hep,R2,R3,R4 decision;
+  class R1,Hep,Resid,R2,R3,R4 decision;
   class Start,Done start;
 `;
 
