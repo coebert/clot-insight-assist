@@ -72,25 +72,25 @@ const MAIN_FLOW = `flowchart TD
   Start --> R1{CK.R > R_max?}
   R1 -- No --> R2
   R1 -- Yes --> Hep{CK.R − CKH.R > 2 min?}
-  Hep -- Yes --> Prot["**Protamine**<br/>Residual heparin<br/>(per local protocol)"]
-  Hep -- No --> FFP["**FFP** 10–15 mL/kg<br/>Factor deficiency"]
+  Hep -- Yes --> Prot["<b>Protamine</b><br/>Residual heparin<br/>(per local protocol)"]
+  Hep -- No --> FFP["<b>FFP</b> 10–15 mL/kg<br/>Factor deficiency"]
   Prot --> Resid{CKH.R still > R_max?}
   Resid -- Yes --> FFP
   Resid -- No --> R2
   FFP --> R2
 
   R2{CFF.MA < Fib_low?}
-  R2 -- Yes --> Cryo["**Cryoprecipitate**<br/>or fibrinogen concentrate<br/>(cryo 1 u / 10 kg, or<br/>fib conc 25–50 mg/kg)"]
+  R2 -- Yes --> Cryo["<b>Cryoprecipitate</b><br/>or fibrinogen concentrate<br/>(cryo 1 u / 10 kg, or<br/>fib conc 25–50 mg/kg)"]
   R2 -- No --> R3
   Cryo --> R3
 
   R3{CRT.MA < Plt_low<br/>AND CFF.MA ≥ Fib_low?}
-  R3 -- Yes --> Plt["**Platelets**<br/>1 adult dose"]
+  R3 -- Yes --> Plt["<b>Platelets</b><br/>1 adult dose"]
   R3 -- No --> R4
   Plt --> R4
 
   R4{CK.LY30 > LY_high?}
-  R4 -- Yes --> TXA["**Tranexamic acid**<br/>1 g IV"]
+  R4 -- Yes --> TXA["<b>Tranexamic acid</b><br/>1 g IV"]
   R4 -- No --> Done
   TXA --> Done
 
@@ -129,11 +129,11 @@ const THRESHOLDS = `flowchart LR
 
 const RANGES = `flowchart TB
   T["TEG 6s reference ranges<br/>(Global Hemostasis cartridge)"]
-  T --> CK["**CK.R** — factor activity<br/>Adult: 4.6 – 9.1 min<br/>Pregnancy: 4.6 – 8.7 min"]
-  T --> CKH["**CKH.R** — heparinase channel<br/>Compared to CK.R<br/>Δ > 2 min ⇒ heparin effect"]
-  T --> CRT["**CRT.MA** — clot strength<br/>Adult: 52 – 70 mm<br/>Pregnancy: 60 – 73 mm"]
-  T --> CFF["**CFF.MA** — fibrinogen<br/>Adult: 15 – 32 mm<br/>Pregnancy: 18 – 41 mm"]
-  T --> LY["**CK.LY30** — fibrinolysis<br/>Adult: < 3 %<br/>Pregnancy: < 2.6 %"]
+  T --> CK["<b>CK.R</b> — factor activity<br/>Adult: 4.6 – 9.1 min<br/>Pregnancy: 4.6 – 8.7 min"]
+  T --> CKH["<b>CKH.R</b> — heparinase channel<br/>Compared to CK.R<br/>Δ > 2 min ⇒ heparin effect"]
+  T --> CRT["<b>CRT.MA</b> — clot strength<br/>Adult: 52 – 70 mm<br/>Pregnancy: 60 – 73 mm"]
+  T --> CFF["<b>CFF.MA</b> — fibrinogen<br/>Adult: 15 – 32 mm<br/>Pregnancy: 18 – 41 mm"]
+  T --> LY["<b>CK.LY30</b> — fibrinolysis<br/>Adult: < 3 %<br/>Pregnancy: < 2.6 %"]
 
   classDef hub fill:#3a1418,stroke:#dc2638,color:#fff;
   classDef leaf fill:#1f2230,stroke:#6b7280,color:#fafafa;
