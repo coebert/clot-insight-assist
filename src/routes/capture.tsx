@@ -153,7 +153,7 @@ function Capture() {
         await sleep(SCAN_INTERVAL_MS);
         continue;
       }
-      if (cancelledRef.current) return;
+      if (dead()) return;
       setScanCount((n) => n + 1);
       const vals: TegValues = {
         CK_R: result.CK_R,
@@ -199,6 +199,10 @@ function Capture() {
     setError(null);
     setState("starting");
     cancelledRef.current = false;
+    // Invalidate any previous run and claim this one.
+    const runId = ++runIdRef.current;
+    // A pending single-photo request must not overwrite the scanner's state.
+    singlePhotoAttemptRef.current = null;
     confirmRef.current = {};
     setLatest(EMPTY_VALUES);
     setScanCount(0);
