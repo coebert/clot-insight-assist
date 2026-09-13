@@ -463,7 +463,10 @@ function Capture() {
           className="sr-only"
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) onSinglePhoto(f);
+            // Reset first: otherwise re-picking the same photo fires no
+            // change event and the button appears dead.
+            e.target.value = "";
+            if (f) void onSinglePhoto(f);
           }}
         />
         <div className="grid grid-cols-2 gap-2">
