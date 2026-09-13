@@ -220,8 +220,17 @@ export function interpret(
     v.CK_R > th.R_prolonged &&
     v.CK_R - v.CKH_R > th.heparin_delta;
 
+  // Heparin may only partly explain the prolongation: if the heparinase
+  // channel is itself still prolonged, factors are deficient too.
+  const residualFactorDeficit =
+    v.CKH_R !== null && v.CKH_R > th.R_prolonged;
+
   // 1. Prolonged CK.R not explained by heparin → FFP
-  if (v.CK_R !== null && v.CK_R > th.R_prolonged && !heparinEffect) {
+  if (
+    v.CK_R !== null &&
+    v.CK_R > th.R_prolonged &&
+    (!heparinEffect || residualFactorDeficit)
+  ) {
     recs.push({
       id: "ffp",
       severity: "action",
