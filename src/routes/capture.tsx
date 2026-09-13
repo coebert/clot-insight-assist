@@ -82,6 +82,9 @@ function Capture() {
   const streamRef = useRef<MediaStream | null>(null);
   const confirmRef = useRef<ConfirmMap>({});
   const cancelledRef = useRef(false);
+  // Identifies the current scan run. A loop from an earlier run keeps its own
+  // token, so restarting the scanner can never leave two loops racing.
+  const runIdRef = useRef(0);
   const singlePhotoAttemptRef = useRef<symbol | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -93,8 +96,11 @@ function Capture() {
 
   const stopCamera = useCallback(() => {
     cancelledRef.current = true;
+    runIdRef.current += 1;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    const video = videoRef.current;
+    if (video) video.srcObject = null;
   }, []);
 
   useEffect(
