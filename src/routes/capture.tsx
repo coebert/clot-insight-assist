@@ -122,16 +122,18 @@ function Capture() {
     [navigate, stopCamera],
   );
 
-  const scanLoop = useCallback(async () => {
+  const scanLoop = useCallback(async (runId: number) => {
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    while (!cancelledRef.current) {
+    // This run is alive only while it is still the newest one AND not cancelled.
+    const dead = () => cancelledRef.current || runIdRef.current !== runId;
+    while (!dead()) {
       const video = videoRef.current;
       if (!video || video.readyState < 2) {
         await sleep(300);
         continue;
       }
       const dataUrl = await captureFrameAsDataUrl(video);
-      if (cancelledRef.current) return;
+      if (dead()) return;
       if (!dataUrl) {
         await sleep(SCAN_INTERVAL_MS);
         continue;
@@ -140,7 +142,7 @@ function Capture() {
       try {
         result = await extract({ data: { imageDataUrl: dataUrl } });
       } catch (e) {
-        if (cancelledRef.current) return;
+        if (dead()) return;
         const msg = e instanceof Error ? e.message : "Extraction failed";
         if (/rate limit|credits/i.test(msg)) {
           setError(msg);
