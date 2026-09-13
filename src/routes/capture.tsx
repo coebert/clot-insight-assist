@@ -418,12 +418,12 @@ function Capture() {
             </div>
           )}
 
-          {state === "idle" && (
+          {(state === "idle" || state === "error") && (
             <button
               onClick={startScanning}
               className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
-              Start auto-scan
+              {state === "error" ? "Try auto-scan again" : "Start auto-scan"}
             </button>
           )}
           {state === "scanning" && (
