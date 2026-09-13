@@ -59,6 +59,36 @@ function countRead(v: TegValues): number {
 }
 
 
+// Reads a picked photo and re-encodes it at MAX_EDGE_PX so payloads stay
+// small. Falls back to the raw data URL if the browser can't decode it.
+async function downscaleFileToDataUrl(file: File): Promise<string> {
+  const raw = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.onerror = () => reject(r.error ?? new Error("Could not read the photo."));
+    r.readAsDataURL(file);
+  });
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error("decode failed"));
+      i.src = raw;
+    });
+    const scale = Math.min(1, MAX_EDGE_PX / Math.max(img.width, img.height));
+    if (scale === 1) return raw;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return raw;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.85);
+  } catch {
+    return raw;
+  }
+}
+
 async function captureFrameAsDataUrl(video: HTMLVideoElement): Promise<string | null> {
   if (!video.videoWidth || !video.videoHeight) return null;
   const scale = Math.min(1, MAX_EDGE_PX / Math.max(video.videoWidth, video.videoHeight));
@@ -82,6 +112,9 @@ function Capture() {
   const streamRef = useRef<MediaStream | null>(null);
   const confirmRef = useRef<ConfirmMap>({});
   const cancelledRef = useRef(false);
+  // Identifies the current scan run. A loop from an earlier run keeps its own
+  // token, so restarting the scanner can never leave two loops racing.
+  const runIdRef = useRef(0);
   const singlePhotoAttemptRef = useRef<symbol | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -93,8 +126,11 @@ function Capture() {
 
   const stopCamera = useCallback(() => {
     cancelledRef.current = true;
+    runIdRef.current += 1;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    const video = videoRef.current;
+    if (video) video.srcObject = null;
   }, []);
 
   useEffect(
@@ -116,16 +152,18 @@ function Capture() {
     [navigate, stopCamera],
   );
 
-  const scanLoop = useCallback(async () => {
+  const scanLoop = useCallback(async (runId: number) => {
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    while (!cancelledRef.current) {
+    // This run is alive only while it is still the newest one AND not cancelled.
+    const dead = () => cancelledRef.current || runIdRef.current !== runId;
+    while (!dead()) {
       const video = videoRef.current;
       if (!video || video.readyState < 2) {
         await sleep(300);
         continue;
       }
       const dataUrl = await captureFrameAsDataUrl(video);
-      if (cancelledRef.current) return;
+      if (dead()) return;
       if (!dataUrl) {
         await sleep(SCAN_INTERVAL_MS);
         continue;
@@ -134,7 +172,7 @@ function Capture() {
       try {
         result = await extract({ data: { imageDataUrl: dataUrl } });
       } catch (e) {
-        if (cancelledRef.current) return;
+        if (dead()) return;
         const msg = e instanceof Error ? e.message : "Extraction failed";
         if (/rate limit|credits/i.test(msg)) {
           setError(msg);
@@ -145,7 +183,7 @@ function Capture() {
         await sleep(SCAN_INTERVAL_MS);
         continue;
       }
-      if (cancelledRef.current) return;
+      if (dead()) return;
       setScanCount((n) => n + 1);
       const vals: TegValues = {
         CK_R: result.CK_R,
@@ -191,6 +229,10 @@ function Capture() {
     setError(null);
     setState("starting");
     cancelledRef.current = false;
+    // Invalidate any previous run and claim this one.
+    const runId = ++runIdRef.current;
+    // A pending single-photo request must not overwrite the scanner's state.
+    singlePhotoAttemptRef.current = null;
     confirmRef.current = {};
     setLatest(EMPTY_VALUES);
     setScanCount(0);
@@ -205,8 +247,10 @@ function Capture() {
       video.srcObject = stream;
       await video.play();
       setState("scanning");
-      void scanLoop();
+      void scanLoop(runId);
     } catch (e) {
+      // Release any track that was granted before the failure.
+      stopCamera();
       setState("error");
       const msg = e instanceof Error ? e.message : "Could not access camera";
       setError(
@@ -215,7 +259,7 @@ function Capture() {
           : msg,
       );
     }
-  }, [scanLoop]);
+  }, [scanLoop, stopCamera]);
 
   const stopScanning = useCallback(() => {
     stopCamera();
@@ -234,27 +278,29 @@ function Capture() {
 
   async function onSinglePhoto(file: File) {
     setError(null);
+    // A live scan must not keep running (and possibly auto-advance) underneath
+    // a single-photo request.
+    stopCamera();
     setState("starting");
     // Track this specific attempt so an in-flight response that arrives
     // after the user has stopped/navigated cannot flip state back.
     const attemptId = Symbol("single-photo");
     singlePhotoAttemptRef.current = attemptId;
     const stillCurrent = () => singlePhotoAttemptRef.current === attemptId;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(r.result as string);
-        r.onerror = () => reject(r.error);
-        r.readAsDataURL(file);
-      });
+      // Phone photos are routinely 4–12 MP; sending the raw file can exceed
+      // the server's payload limit and is far slower than it needs to be.
+      // Downscale to the same long edge the live scanner uses.
+      const dataUrl = await downscaleFileToDataUrl(file);
       const result = await Promise.race([
         extract({ data: { imageDataUrl: dataUrl } }),
-        new Promise<never>((_, reject) =>
-          setTimeout(
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
             () => reject(new Error("Request timed out. Please try again or enter values manually.")),
             SINGLE_PHOTO_TIMEOUT_MS,
-          ),
-        ),
+          );
+        }),
       ]);
       if (!stillCurrent()) return;
       saveValues({
@@ -269,6 +315,8 @@ function Capture() {
       if (!stillCurrent()) return;
       setState("error");
       setError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
     }
   }
 
@@ -370,12 +418,12 @@ function Capture() {
             </div>
           )}
 
-          {state === "idle" && (
+          {(state === "idle" || state === "error") && (
             <button
               onClick={startScanning}
               className="mt-4 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
-              Start auto-scan
+              {state === "error" ? "Try auto-scan again" : "Start auto-scan"}
             </button>
           )}
           {state === "scanning" && (
@@ -415,7 +463,10 @@ function Capture() {
           className="sr-only"
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) onSinglePhoto(f);
+            // Reset first: otherwise re-picking the same photo fires no
+            // change event and the button appears dead.
+            e.target.value = "";
+            if (f) void onSinglePhoto(f);
           }}
         />
         <div className="grid grid-cols-2 gap-2">

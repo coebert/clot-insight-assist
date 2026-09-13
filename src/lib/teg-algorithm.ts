@@ -164,7 +164,7 @@ export function validateAll(v: TegValues): ValueIssue[] {
     issues.push({
       key: "CKH_R",
       severity: "warning",
-      message: `CKH.R (${v.CKH_R}) > CK.R (${v.CK_R}) — unexpected, please re-check.`,
+      message: `CKH.R (${v.CKH_R}) is more than 2 min longer than CK.R (${v.CK_R}) — adding heparinase should not prolong R. Please re-check.`,
     });
   }
   if (v.CFF_MA !== null && v.CRT_MA !== null && v.CFF_MA > v.CRT_MA) {
@@ -210,13 +210,34 @@ export function interpret(
   const pregNote = " Pregnancy-adjusted threshold (third-trimester physiology).";
 
 
-  // 1. Prolonged CK.R → FFP
-  if (v.CK_R !== null && v.CK_R > th.R_prolonged) {
+  // Heparin effect: a prolonged CK.R that corrects with heparinase (CKH.R)
+  // is caused by circulating heparin, not factor deficiency — so it calls for
+  // protamine and NOT for FFP. The two rules below are therefore mutually
+  // exclusive (this also matches the published decision tree diagram).
+  const heparinEffect =
+    v.CK_R !== null &&
+    v.CKH_R !== null &&
+    v.CK_R > th.R_prolonged &&
+    v.CK_R - v.CKH_R > th.heparin_delta;
+
+  // Heparin may only partly explain the prolongation: if the heparinase
+  // channel is itself still prolonged, factors are deficient too.
+  const residualFactorDeficit =
+    v.CKH_R !== null && v.CKH_R > th.R_prolonged;
+
+  // 1. Prolonged CK.R not explained by heparin → FFP
+  if (
+    v.CK_R !== null &&
+    v.CK_R > th.R_prolonged &&
+    (!heparinEffect || residualFactorDeficit)
+  ) {
     recs.push({
       id: "ffp",
       severity: "action",
       finding: "Prolonged CK.R (coagulation factor deficiency)",
-      trigger: `CK.R = ${v.CK_R} min (> ${th.R_prolonged} min)`,
+      trigger: heparinEffect
+        ? `CK.R = ${v.CK_R} min and CKH.R = ${v.CKH_R} min both > ${th.R_prolonged} min (heparin effect does not fully explain the prolongation)`
+        : `CK.R = ${v.CK_R} min (> ${th.R_prolonged} min)`,
       product: "Fresh Frozen Plasma (FFP)",
       dose: "10–15 mL/kg",
       rationale: rationale(
