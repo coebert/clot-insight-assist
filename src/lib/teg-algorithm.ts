@@ -235,7 +235,9 @@ export function interpret(
       id: "ffp",
       severity: "action",
       finding: "Prolonged CK.R (coagulation factor deficiency)",
-      trigger: `CK.R = ${v.CK_R} min (> ${th.R_prolonged} min)`,
+      trigger: heparinEffect
+        ? `CK.R = ${v.CK_R} min and CKH.R = ${v.CKH_R} min both > ${th.R_prolonged} min (heparin effect does not fully explain the prolongation)`
+        : `CK.R = ${v.CK_R} min (> ${th.R_prolonged} min)`,
       product: "Fresh Frozen Plasma (FFP)",
       dose: "10–15 mL/kg",
       rationale: rationale(
