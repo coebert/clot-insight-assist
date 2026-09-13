@@ -248,6 +248,9 @@ function Capture() {
 
   async function onSinglePhoto(file: File) {
     setError(null);
+    // A live scan must not keep running (and possibly auto-advance) underneath
+    // a single-photo request.
+    stopCamera();
     setState("starting");
     // Track this specific attempt so an in-flight response that arrives
     // after the user has stopped/navigated cannot flip state back.
