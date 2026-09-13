@@ -217,7 +217,7 @@ function Capture() {
       video.srcObject = stream;
       await video.play();
       setState("scanning");
-      void scanLoop();
+      void scanLoop(runId);
     } catch (e) {
       setState("error");
       const msg = e instanceof Error ? e.message : "Could not access camera";
