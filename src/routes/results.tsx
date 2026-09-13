@@ -6,7 +6,7 @@ import {
   interpret,
   type TegValues,
 } from "@/lib/teg-algorithm";
-import { clearValues, useTegSession } from "@/lib/teg-store";
+import { clearValues, hasSavedValues, useTegSession } from "@/lib/teg-store";
 import { DisclaimerBanner } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";

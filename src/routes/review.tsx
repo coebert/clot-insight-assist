@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import {
   clearValues,
+  hasSavedValues,
   savePopulation,
   saveValues,
   useTegSession,
