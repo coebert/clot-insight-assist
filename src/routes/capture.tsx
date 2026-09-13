@@ -257,21 +257,20 @@ function Capture() {
     const attemptId = Symbol("single-photo");
     singlePhotoAttemptRef.current = attemptId;
     const stillCurrent = () => singlePhotoAttemptRef.current === attemptId;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(r.result as string);
-        r.onerror = () => reject(r.error);
-        r.readAsDataURL(file);
-      });
+      // Phone photos are routinely 4–12 MP; sending the raw file can exceed
+      // the server's payload limit and is far slower than it needs to be.
+      // Downscale to the same long edge the live scanner uses.
+      const dataUrl = await downscaleFileToDataUrl(file);
       const result = await Promise.race([
         extract({ data: { imageDataUrl: dataUrl } }),
-        new Promise<never>((_, reject) =>
-          setTimeout(
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
             () => reject(new Error("Request timed out. Please try again or enter values manually.")),
             SINGLE_PHOTO_TIMEOUT_MS,
-          ),
-        ),
+          );
+        }),
       ]);
       if (!stillCurrent()) return;
       saveValues({
