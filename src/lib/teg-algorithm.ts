@@ -120,6 +120,15 @@ const PREGNANT_TH: Thresholds = {
   ly30_high: 2.6,
 };
 
+// Exposed so the rules reference page can render the exact numbers the
+// engine uses, rather than a hand-copied duplicate.
+export const THRESHOLDS: Record<Population, Thresholds> = {
+  standard: STANDARD_TH,
+  pregnant: PREGNANT_TH,
+};
+
+export type { Thresholds };
+
 function thresholdsFor(population: Population): Thresholds {
   return population === "pregnant" ? PREGNANT_TH : STANDARD_TH;
 }

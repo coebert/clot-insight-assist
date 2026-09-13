@@ -132,6 +132,10 @@ function Results() {
           <Link to="/algorithm" className="underline underline-offset-4 hover:text-foreground">
             View the decision tree this recommendation came from
           </Link>
+          <span className="mx-2 opacity-50">·</span>
+          <Link to="/rules" className="underline underline-offset-4 hover:text-foreground">
+            Rules reference
+          </Link>
         </p>
 
         <p className="text-xs text-muted-foreground">{CITATION}</p>

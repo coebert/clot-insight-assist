@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RulesRouteImport } from './routes/rules'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResultsRouteImport } from './routes/results'
 import { Route as CaptureRouteImport } from './routes/capture'
 import { Route as AlgorithmRouteImport } from './routes/algorithm'
 import { Route as IndexRouteImport } from './routes/index'
 
+const RulesRoute = RulesRouteImport.update({
+  id: '/rules',
+  path: '/rules',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReviewRoute = ReviewRouteImport.update({
   id: '/review',
   path: '/review',
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/capture': typeof CaptureRoute
   '/results': typeof ResultsRoute
   '/review': typeof ReviewRoute
+  '/rules': typeof RulesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/capture': typeof CaptureRoute
   '/results': typeof ResultsRoute
   '/review': typeof ReviewRoute
+  '/rules': typeof RulesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +70,21 @@ export interface FileRoutesById {
   '/capture': typeof CaptureRoute
   '/results': typeof ResultsRoute
   '/review': typeof ReviewRoute
+  '/rules': typeof RulesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/algorithm' | '/capture' | '/results' | '/review'
+  fullPaths: '/' | '/algorithm' | '/capture' | '/results' | '/review' | '/rules'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/algorithm' | '/capture' | '/results' | '/review'
-  id: '__root__' | '/' | '/algorithm' | '/capture' | '/results' | '/review'
+  to: '/' | '/algorithm' | '/capture' | '/results' | '/review' | '/rules'
+  id:
+    | '__root__'
+    | '/'
+    | '/algorithm'
+    | '/capture'
+    | '/results'
+    | '/review'
+    | '/rules'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,10 +93,18 @@ export interface RootRouteChildren {
   CaptureRoute: typeof CaptureRoute
   ResultsRoute: typeof ResultsRoute
   ReviewRoute: typeof ReviewRoute
+  RulesRoute: typeof RulesRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/rules': {
+      id: '/rules'
+      path: '/rules'
+      fullPath: '/rules'
+      preLoaderRoute: typeof RulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/review': {
       id: '/review'
       path: '/review'
@@ -125,6 +149,7 @@ const rootRouteChildren: RootRouteChildren = {
   CaptureRoute: CaptureRoute,
   ResultsRoute: ResultsRoute,
   ReviewRoute: ReviewRoute,
+  RulesRoute: RulesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
