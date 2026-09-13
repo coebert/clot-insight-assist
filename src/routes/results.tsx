@@ -6,7 +6,7 @@ import {
   interpret,
   type TegValues,
 } from "@/lib/teg-algorithm";
-import { clearValues, useTegSession } from "@/lib/teg-store";
+import { clearValues, hasSavedValues, useTegSession } from "@/lib/teg-store";
 import { DisclaimerBanner } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,11 @@ function Results() {
 
   useEffect(() => {
     // Route guard — a blank recommendation is worse than sending the user back.
-    if (!hasValues) navigate({ to: "/capture", replace: true });
+    // Read hasSavedValues() directly: effects run client-side only, and this
+    // avoids the hydration commit where useSyncExternalStore still reports
+    // the (empty) server snapshot — which would bounce a reloaded page back
+    // to /capture despite values being saved.
+    if (!hasSavedValues()) navigate({ to: "/capture", replace: true });
   }, [hasValues, navigate]);
 
   const meta = useMemo(() => getParamMeta(population), [population]);

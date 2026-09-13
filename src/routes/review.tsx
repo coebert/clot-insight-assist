@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import {
   clearValues,
+  hasSavedValues,
   savePopulation,
   saveValues,
   useTegSession,
@@ -44,7 +45,11 @@ function Review() {
     // Route guard: if the user landed here directly without going through
     // /capture (or after a session reset), send them back rather than
     // rendering a form full of empty fields with no context.
-    if (!hasValues) navigate({ to: "/capture", replace: true });
+    // Read hasSavedValues() directly: effects run client-side only, and this
+    // avoids the hydration commit where useSyncExternalStore still reports
+    // the (empty) server snapshot — which would bounce a reloaded page back
+    // to /capture despite values being saved.
+    if (!hasSavedValues()) navigate({ to: "/capture", replace: true });
   }, [hasValues, navigate]);
 
   const meta = useMemo(() => getParamMeta(population), [population]);
