@@ -1,14 +1,14 @@
 # Clinical safety and workflow correction
 
-- [ ] Resume QA from 466aaab; inspect newer work, correct versioned intervals and WHO 2025.
-- [ ] Finish full regression/lint/types, automatic production compilation, synthetic desktop/mobile and mocked capture verification.
-- [ ] Record findings and limitations; commit without publishing.
+- [x] Resume QA from 466aaab; inspect newer work, correct versioned intervals and WHO 2025.
+- [x] Finish full regression/lint/types, automatic production compilation, synthetic desktop/mobile and mocked capture verification.
+- [x] Record findings and limitations; commit without publishing.
 
-- [ ] Correct engine validation, clinical context, reference intervals and conditional findings.
-- [ ] Bind display verification to exact session values/context and harden storage/reset.
-- [ ] Correct camera cancellation, coherent frames, OCR rejection and cloud consent.
-- [ ] Align rules, diagrams and citations with the engine.
-- [ ] Run regression tests and synthetic desktop/mobile flows; record verification and commit without publishing.
+- [x] Correct engine validation, clinical context, reference intervals and conditional findings.
+- [x] Bind display verification to exact session values/context and harden storage/reset.
+- [x] Correct camera cancellation, coherent frames, OCR rejection and cloud consent.
+- [x] Align rules, diagrams and citations with the engine.
+- [x] Run regression tests and synthetic desktop/mobile flows; record verification and commit without publishing.
 
 ## Earlier dependency security remediation
 

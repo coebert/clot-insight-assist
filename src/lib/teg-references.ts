@@ -11,7 +11,7 @@ export const REFERENCES: Reference[] = [
   {
     id: "haemonetics-insert",
     citation:
-      "Haemonetics. TEG 6s Citrated K, KH, RT, FF cartridge REF 07-601. PN 115873-MULTI(AC), February 2016, English p5, Expected Values.",
+      "Haemonetics. TEG 6s Citrated K, KH, RT, FF cartridge REF 07-601. PN 115873-MULTI(AC), February 2016, English pp5–6, Expected Values.",
     url: "https://www.ruh.nhs.uk/pathology/documents/poct/115873-MULTI_AC_CM_OUS_insert.pdf",
     supports: ["ranges-adult", "channel-definitions"],
     limitation:

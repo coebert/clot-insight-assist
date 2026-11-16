@@ -1,0 +1,10 @@
+[
+  "desktop: high MA/short R flagged despite no trigger; no anticoagulation advice",
+  "desktop: unknown trauma timing, browser back preserves case",
+  "desktop: matching reference panel screenshot and diagrams render without page overflow",
+  "desktop: blocked storage warns, memory fallback and explicit reset work",
+  "mobile: high MA/short R flagged despite no trigger; no anticoagulation advice",
+  "mobile: unknown trauma timing, browser back preserves case",
+  "mobile: matching reference panel screenshot and diagrams render without page overflow",
+  "mobile: blocked storage warns, memory fallback and explicit reset work"
+]
