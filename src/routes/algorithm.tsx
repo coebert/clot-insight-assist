@@ -25,7 +25,7 @@ function useDebouncedValue<T>(value: T, delay = 150): T {
 function ReferenceItem({ r }: { r: Reference }) {
   return (
     <li id={`ref-${r.id}`}>
-      <span>{r.citation}</span>{" "}
+      <span>{r.citation} {r.limitation}</span>{" "}
       <a
         href={r.url}
         target="_blank"
@@ -39,23 +39,25 @@ function ReferenceItem({ r }: { r: Reference }) {
 }
 
 
-const RULES_IN_ORDER: { id: string; label: string }[] = [
-  { id: "channel-definitions", label: "TEG 6s channels & parameter definitions" },
-  { id: "ranges-adult", label: "Adult reference ranges" },
-  { id: "ranges-pregnancy", label: "Pregnancy (peripartum) reference ranges" },
-  { id: "rule-ffp", label: "Rule: Prolonged CK.R → FFP" },
-  { id: "rule-protamine", label: "Rule: CK.R − CKH.R > 2 min → Protamine" },
-  { id: "rule-cryo", label: "Rule: Low CFF.MA → Cryoprecipitate / fibrinogen concentrate" },
-  { id: "fib-target-pph", label: "Pregnancy: fibrinogen target ≥ 2 g/L (CFF.MA ≈ 20 mm)" },
-  { id: "rule-platelets", label: "Rule: Low CRT.MA with adequate fibrinogen → Platelets" },
-  { id: "rule-txa", label: "Rule: CK.LY30 > threshold → Tranexamic acid (adult)" },
-  { id: "rule-txa-pregnancy", label: "Rule: Tranexamic acid in postpartum haemorrhage" },
-  { id: "evidence-base", label: "Overall evidence base for viscoelastic-guided transfusion" },
+const RULES_IN_ORDER = [
+  { id: 'channel-definitions', label: 'Original cartridge scope' },
+  { id: 'ranges-adult', label: 'Manufacturer reference intervals — not treatment cutoffs' },
+  { id: 'obstetric-evidence', label: 'Obstetric A10 evidence — NOT MA; no configured obstetric algorithm' },
+  { id: 'rule-ffp', label: 'Prolonged reaction time — clinical/lab assessment' },
+  { id: 'rule-protamine', label: 'Suspected heparin — exposure, contamination and SmPC' },
+  { id: 'rule-cryo', label: 'Reduced functional fibrin contribution' },
+  { id: 'rule-platelets', label: 'Reduced clot strength — combined deficits possible' },
+  { id: 'rule-txa', label: 'Trauma TXA — within 3 hours of injury, not LY30 gated' },
+  { id: 'rule-txa-pregnancy', label: 'PPH TXA — within 3 hours of birth, not pregnancy alone' },
 ];
 
 export const Route = createFileRoute("/algorithm")({
   head: () => ({
     meta: [
+      { property: "og:title", content: "Algorithm — Clot Clarity" },
+      { property: "og:description", content: "Clinical gates, illustrative findings, source limitations and decision diagrams." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "Algorithm — Clot Clarity" },
       {
         name: "description",
@@ -68,77 +70,49 @@ export const Route = createFileRoute("/algorithm")({
 });
 
 const MAIN_FLOW = `flowchart TD
-  Start([TEG 6s values entered])
-  Start --> R1{CK.R > R_max?}
-  R1 -- No --> R2
-  R1 -- Yes --> Hep{CK.R − CKH.R > 2 min?}
-  Hep -- Yes --> Prot["<b>Protamine</b><br/>Residual heparin<br/>(per local protocol)"]
-  Hep -- No --> FFP["<b>FFP</b> 10–15 mL/kg<br/>Factor deficiency"]
-  Prot --> Resid{CKH.R still > R_max?}
-  Resid -- Yes --> FFP
-  Resid -- No --> R2
-  FFP --> R2
-
-  R2{CFF.MA < Fib_low?}
-  R2 -- Yes --> Cryo["<b>Cryoprecipitate</b><br/>or fibrinogen concentrate<br/>(cryo 1 u / 10 kg, or<br/>fib conc 25–50 mg/kg)"]
-  R2 -- No --> R3
-  Cryo --> R3
-
-  R3{CRT.MA < Plt_low<br/>AND CFF.MA ≥ Fib_low?}
-  R3 -- Yes --> Plt["<b>Platelets</b><br/>1 adult dose"]
-  R3 -- No --> R4
-  Plt --> R4
-
-  R4{CK.LY30 > LY_high?}
-  R4 -- Yes --> TXA["<b>Tranexamic acid</b><br/>1 g IV"]
-  R4 -- No --> Done
-  TXA --> Done
-
-  Done([Display recommendation])
-
-  classDef action fill:#3a1418,stroke:#dc2638,stroke-width:2px,color:#fff;
-  classDef decision fill:#1f2230,stroke:#6b7280,color:#fafafa;
-  classDef start fill:#0f1115,stroke:#dc2638,color:#fafafa;
-  class Prot,FFP,Cryo,Plt,TXA action;
-  class R1,Hep,Resid,R2,R3,R4 decision;
-  class Start,Done start;
+ Start[Completed original TEG6s CK CKH CRT CFF values] --> Valid{Valid nonempty input?}
+ Valid -- No --> Block[Block interpretation]
+ Valid -- Yes --> Scope{Adult and compatible cartridge confirmed?}
+ Scope -- No --> Block
+ Scope -- Yes --> Verify{Exact values and context verified?}
+ Verify -- No --> Review[Return to review]
+ Verify -- Yes --> Context{Active significant bleeding and non-obstetric context and no warnings?}
+ Context -- No --> Findings[Interpretive findings and lab correlation only - no product or dose decisions]
+ Context -- Yes --> Ladder[Illustrative adult ladder - not universal validated treatment thresholds]
+ Ladder --> R{CK.R greater than 10?}
+ R -- Yes --> H{CKH.R available?}
+ H -- No --> Missing[Heparin comparison and plasma branch unavailable]
+ H -- Yes --> D{CK.R minus CKH.R greater than 2?}
+ D -- Yes --> Hep[Suspected heparin - check exposure and contamination - no calculated protamine dose]
+ D -- No --> Plasma[Consider plasma only with clinical and lab correlation]
+ Hep --> Resid{CKH.R also greater than 10?}
+ Resid -- Yes --> Plasma
+ Ladder --> Fib{CFF.MA less than 15?}
+ Fib -- Yes --> F[Reduced fibrin contribution - Clauss fibrinogen and local protocol]
+ Ladder --> MA{CRT.MA less than 52?}
+ MA -- Yes --> C{CFF.MA available and at least 15?}
+ C -- Yes --> P[Platelet contribution assessment - counts and local protocol]
+ C -- No --> Both[Missing fibrin assessment or combined deficits - reassess counts and MA after fibrin correction]
+ Ladder --> LY{CK.LY30 greater than 3?}
+ LY -- Yes --> Lysis[Increased observed lysis - not a universal TXA indication]
+ Ladder --> Done[No trigger does not establish normal haemostasis or exclude bleeding]
+ Start -. Immediate clinical escalation - do not wait for TEG .-> Emergency[Suspected major haemorrhage - activate local protocol]
 `;
-
-const THRESHOLDS = `flowchart LR
-  subgraph STD[Standard adult]
-    direction TB
-    S1["R_max = 10 min"]
-    S2["Fib_low = 15 mm"]
-    S3["Plt_low = 52 mm"]
-    S4["LY_high = 3 %"]
-  end
-  subgraph PRG[Pregnant — 3rd trimester]
-    direction TB
-    P1["R_max = 9 min"]
-    P2["Fib_low = 20 mm<br/>(target ≥ 2 g/L)"]
-    P3["Plt_low = 55 mm"]
-    P4["LY_high = 2.6 %"]
-  end
-  STD --- PRG
-
-  classDef std fill:#1f2230,stroke:#6b7280,color:#fafafa;
-  classDef prg fill:#3a1418,stroke:#dc2638,color:#fafafa;
-  class S1,S2,S3,S4 std;
-  class P1,P2,P3,P4 prg;
+const THRESHOLDS = `flowchart TD
+ T[Context-dependent TXA guidance - independent of LY30] --> Trauma[Bleeding trauma or risk of significant bleeding - assess promptly within 3 hours of injury]
+ T --> PPH[Confirmed PPH - within 3 hours of birth - pregnancy alone is not PPH]
+ Trauma --> Protocol[Do not await viscoelastic testing - indication-specific local protocol - no numeric dose calculated]
+ PPH --> Protocol
+ T --> Unknown[Absent or unknown bleeding or timing outside or unknown - no automatic TXA instruction]
 `;
-
-const RANGES = `flowchart TB
-  T["TEG 6s reference ranges<br/>(Global Hemostasis cartridge)"]
-  T --> CK["<b>CK.R</b> — factor activity<br/>Adult: 4.6 – 9.1 min<br/>Pregnancy: 4.6 – 8.7 min"]
-  T --> CKH["<b>CKH.R</b> — heparinase channel<br/>Compared to CK.R<br/>Δ > 2 min ⇒ heparin effect"]
-  T --> CRT["<b>CRT.MA</b> — clot strength<br/>Adult: 52 – 70 mm<br/>Pregnancy: 60 – 73 mm"]
-  T --> CFF["<b>CFF.MA</b> — fibrinogen<br/>Adult: 15 – 32 mm<br/>Pregnancy: 18 – 41 mm"]
-  T --> LY["<b>CK.LY30</b> — fibrinolysis<br/>Adult: < 3 %<br/>Pregnancy: < 2.6 %"]
-
-  classDef hub fill:#3a1418,stroke:#dc2638,color:#fff;
-  classDef leaf fill:#1f2230,stroke:#6b7280,color:#fafafa;
-  class T hub;
-  class CK,CKH,CRT,CFF,LY leaf;
+const RANGES = `flowchart TD
+ T[Revision AB manufacturer intervals - not treatment triggers] --> CK[CK.R 4.6 to 9.1 min]
+ T --> CKH[CKH.R 4.3 to 8.3 min]
+ T --> CRT[CRT.MA 52 to 70 mm]
+ T --> CFF[CFF.MA 13 to 30 mm]
+ T --> LY[CK.LY30 0 to 2.6 percent]
+ T --> OB[No validated local obstetric algorithm or pregnancy intervals configured]
+ OB --> A10[Roberts 2021 CFF A10 at most 17 mm is NOT MA - not used as an MA cutoff]
 `;
 
 function matchesQuery(r: Reference, query: string): boolean {
@@ -190,7 +164,7 @@ function AlgorithmPage() {
             Transparency
           </p>
           <h1 className="text-3xl font-bold tracking-tight">
-            How recommendations are made
+            Clinical safeguards and finding diagrams
           </h1>
           <p className="text-muted-foreground">
             Clot Clarity uses a transparent, rule-based decision tree — no AI in
@@ -204,17 +178,15 @@ function AlgorithmPage() {
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">Decision tree</h2>
           <p className="text-sm text-muted-foreground">
-            Each entered value is checked in order. Multiple recommendations can
-            fire from a single result set (e.g. FFP + cryoprecipitate).
+            Clinical gates precede findings. Product considerations require active bleeding in a non-obstetric adult context and local protocol/lab correlation. No numeric doses are calculated.
           </p>
           <Mermaid chart={MAIN_FLOW} />
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Thresholds: adult vs pregnancy</h2>
+          <h2 className="text-lg font-semibold">TXA context and timing</h2>
           <p className="text-sm text-muted-foreground">
-            Ticking the "patient is pregnant" box on the review screen swaps the
-            thresholds used in the tree above.
+            TXA guidance does not depend on elevated LY30. No validated local obstetric algorithm is configured.
           </p>
           <Mermaid chart={THRESHOLDS} />
         </section>
@@ -228,10 +200,7 @@ function AlgorithmPage() {
           <div className="space-y-2">
             <h2 className="text-lg font-semibold">References</h2>
             <p className="text-sm text-muted-foreground">
-              Every rule and reference range maps to one or more peer-reviewed
-              sources or manufacturer documents listed below. Each DOI link
-              resolves to the canonical published version for independent
-              verification.
+              Sources support the stated intervals or context-specific guidance; they do not validate the illustrative numeric ladder as a universal treatment algorithm. Limitations are listed with each source.
             </p>
           </div>
 
@@ -245,13 +214,13 @@ function AlgorithmPage() {
               className="h-10 pl-9 pr-9"
             />
             {query && (
-              <button
+              <Button variant="ghost" size="icon"
                 onClick={() => setQuery("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 aria-label="Clear search"
               >
                 <X className="h-4 w-4" />
-              </button>
+              </Button>
             )}
           </div>
 

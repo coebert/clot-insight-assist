@@ -6,7 +6,7 @@ import {
   interpret,
   type TegValues,
 } from "@/lib/teg-algorithm";
-import { clearValues, hasSavedValues, useTegSession } from "@/lib/teg-store";
+import { clearValues, hasSavedValues, isCaseVerified, useTegSession } from "@/lib/teg-store";
 import { DisclaimerBanner } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,10 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/results")({
   head: () => ({
     meta: [
+      { property: "og:title", content: "Recommendation — TEG 6s Advisor" },
+      { property: "og:description", content: "Verified TEG 6s findings with clinical safeguards and unavailable assessments." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "Recommendation — TEG 6s Advisor" },
       {
         name: "description",
@@ -27,7 +31,7 @@ export const Route = createFileRoute("/results")({
 
 function Results() {
   const navigate = useNavigate();
-  const { values, population, hasValues } = useTegSession();
+  const { values, population, hasValues, context, verified } = useTegSession();
 
   useEffect(() => {
     // Route guard — a blank recommendation is worse than sending the user back.
@@ -36,12 +40,13 @@ function Results() {
     // the (empty) server snapshot — which would bounce a reloaded page back
     // to /capture despite values being saved.
     if (!hasSavedValues()) navigate({ to: "/capture", replace: true });
-  }, [hasValues, navigate]);
+    else if (!isCaseVerified()) navigate({ to: "/review", replace: true });
+  }, [hasValues, verified, navigate]);
 
   const meta = useMemo(() => getParamMeta(population), [population]);
-  const { recommendations, missing } = useMemo(
-    () => interpret(values, population),
-    [values, population],
+  const { recommendations, missing, abnormal, unavailable, guidance, errors } = useMemo(
+    () => interpret(values, context),
+    [values, context],
   );
 
 
@@ -57,7 +62,7 @@ function Results() {
     navigate({ to: "/" });
   };
 
-  if (!hasValues) return null;
+  if (!hasValues || !verified || errors.length) return null;
 
   return (
     <main className="min-h-screen px-4 py-8 print:py-2">
@@ -68,13 +73,12 @@ function Results() {
           </Link>
           <Logo size={28} withWordmark />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight">Recommendation</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Interpretation</h1>
         <DisclaimerBanner compact />
 
         {population === "pregnant" && (
           <div className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-foreground">
-            <strong>Pregnancy-adjusted interpretation:</strong> third-trimester
-            reference ranges and peripartum transfusion thresholds applied.
+            <strong>Obstetric context:</strong> no validated local obstetric algorithm configured. No automated product or dose decisions.
           </div>
         )}
 
@@ -95,10 +99,15 @@ function Results() {
         {missing.length > 0 && (
           <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
             Missing values: {missing.map((k) => meta[k].label).join(", ")}.
-            Rules requiring these parameters were skipped.
+            These are unavailable assessments, not reassuring findings.
           </div>
         )}
 
+        <section className="space-y-3" aria-label="Clinical safeguards">
+          {guidance.map(text => <p key={text} className="text-sm text-warning">{text}</p>)}
+          {unavailable.map(text => <p key={text} className="text-sm text-muted-foreground">{text}</p>)}
+          {abnormal.length > 0 && <div><h2 className="font-semibold">Outside manufacturer reference intervals{population === 'pregnant' ? ' (non-obstetric comparison only)' : ''}</h2><ul className="mt-2 space-y-1 text-sm">{abnormal.map(a => <li key={a.key}>{meta[a.key].label}: {a.value} {meta[a.key].unit} — {a.direction}; not a diagnosis or treatment indication</li>)}</ul></div>}
+        </section>
         <section className="space-y-3">
           {recommendations.map((r) => (
             <article
@@ -116,7 +125,7 @@ function Results() {
                 </span>
               </header>
               <p className="mt-1 text-sm font-medium">{r.finding}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Trigger: {r.trigger}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Illustrative trigger: {r.trigger}</p>
               {r.dose !== "—" && (
                 <p className="mt-2 text-sm">
                   <span className="font-semibold">Suggested dose: </span>

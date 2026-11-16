@@ -4,6 +4,7 @@ import {
   clearValues,
   hasSavedValues,
   savePopulation,
+  saveContext, verifyCase, revokeVerification,
   saveValues,
   useTegSession,
 } from "@/lib/teg-store";
@@ -26,6 +27,10 @@ import { AlertTriangle } from "lucide-react";
 export const Route = createFileRoute("/review")({
   head: () => ({
     meta: [
+      { property: "og:title", content: "Review values — TEG 6s Advisor" },
+      { property: "og:description", content: "Verify completed readings and clinical context before interpretation." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "Review values — TEG 6s Advisor" },
       {
         name: "description",
@@ -39,7 +44,7 @@ export const Route = createFileRoute("/review")({
 
 function Review() {
   const navigate = useNavigate();
-  const { values, population, hasValues } = useTegSession();
+  const { values, population, hasValues, context, verified } = useTegSession();
 
   useEffect(() => {
     // Route guard: if the user landed here directly without going through
@@ -56,7 +61,7 @@ function Review() {
 
   const update = (k: keyof TegValues, raw: string) => {
     const parsed = raw.trim() === "" ? null : Number(raw);
-    const next = Number.isNaN(parsed as number) ? null : parsed;
+    const next = parsed;
     saveValues({ ...values, [k]: next });
   };
 
@@ -75,7 +80,7 @@ function Review() {
   const warningCount = issues.filter((i) => i.severity === "warning").length;
 
   const submit = () => {
-    if (errorCount > 0) return;
+    if (errorCount > 0 || !verified || !verifyCase()) return;
     navigate({ to: "/results" });
   };
 
@@ -126,12 +131,20 @@ function Review() {
               Patient is pregnant
             </div>
             <div className="text-xs text-muted-foreground">
-              Apply third-trimester / peripartum reference ranges and
-              transfusion thresholds (fibrinogen target raised, LY30 cutoff
-              tightened).
+              No validated local obstetric algorithm configured. Findings and lab correlation only; no automated product or dose decisions.
             </div>
           </div>
         </label>
+
+        <section className="space-y-4 border-y border-border py-4">
+          <h2 className="font-semibold">Clinical context</h2>
+          <label className="flex items-center gap-3"><Checkbox checked={context.adultConfirmed} onCheckedChange={c => saveContext({ ...context, adultConfirmed: c === true })} />Adult patient (18 years or older)</label>
+          <label className="flex items-start gap-3"><Checkbox checked={context.cartridgeConfirmed} onCheckedChange={c => saveContext({ ...context, cartridgeConfirmed: c === true })} />Original TEG 6s Global Hemostasis cartridge: CK, CKH, CRT, CFF only (not HN or other cartridges)</label>
+          <fieldset className="space-y-2"><legend className="font-medium">Bleeding context</legend>{([['active', 'Active significant bleeding'], ['not-bleeding', 'Not bleeding'], ['unknown', 'Unknown']] as const).map(([v, label]) => <label key={v} className="flex items-center gap-2"><input type="radio" name="bleeding" checked={context.bleeding === v} onChange={() => saveContext({ ...context, bleeding: v })} />{label}</label>)}</fieldset>
+          <fieldset className="space-y-2"><legend className="font-medium">Indication</legend>{([['other', 'Other / not established'], ['trauma', 'Trauma'], ['pph', 'Confirmed postpartum haemorrhage (not pregnancy alone)']] as const).map(([v, label]) => <label key={v} className="flex items-center gap-2"><input type="radio" name="indication" checked={context.indication === v} onChange={() => saveContext({ ...context, indication: v, withinThreeHours: 'unknown' })} />{label}</label>)}</fieldset>
+          {context.indication !== 'other' && <fieldset className="space-y-2"><legend className="font-medium">Within 3 hours of {context.indication === 'trauma' ? 'injury' : 'birth'}?</legend>{(['yes', 'no', 'unknown'] as const).map(v => <label key={v} className="flex items-center gap-2"><input type="radio" name="timing" checked={context.withinThreeHours === v} onChange={() => saveContext({ ...context, withinThreeHours: v })} />{v}</label>)}</fieldset>}
+          <p className="text-sm text-warning">Major haemorrhage: escalate and activate the local protocol immediately. Do not wait for complete TEG results or TXA assessment by TEG.</p>
+        </section>
 
         {(errorCount > 0 || warningCount > 0) && (
           <Alert
@@ -168,14 +181,14 @@ function Review() {
                   : "";
             return (
               <div key={k} className={`rounded-lg border bg-card p-4 ${ring}`}>
-                <label className="flex items-baseline justify-between gap-3">
+                <label className="flex flex-wrap items-baseline justify-between gap-3">
                   <div>
                     <div className="font-semibold">{m.label}</div>
                     <div className="text-xs text-muted-foreground">
                       {m.description}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      Normal{population === "pregnant" ? " (pregnancy)" : ""}: {m.normal} {m.unit} · Plausible: {PLAUSIBLE[k][0]}–{PLAUSIBLE[k][1]} {m.unit}
+                      Manufacturer interval{population === "pregnant" ? " (not obstetric)" : ""}: {m.normal} {m.unit} · Plausible: {PLAUSIBLE[k][0]}–{PLAUSIBLE[k][1]} {m.unit}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -209,13 +222,17 @@ function Review() {
           })}
         </div>
 
+        <label className="flex items-start gap-3 border-t border-border pt-4">
+          <Checkbox checked={verified !== null} disabled={errorCount > 0 || !context.adultConfirmed || !context.cartridgeConfirmed || Object.values(values).every(v => v === null)} onCheckedChange={c => c === true ? verifyCase() : revokeVerification()} />
+          <span>I verified these exact completed values, channel labels, units and clinical context against the display. Missing readings are unavailable, not normal. I reviewed any warnings.</span>
+        </label>
         <div className="flex flex-col gap-2">
-          <Button onClick={submit} disabled={errorCount > 0} className="w-full">
+          <Button onClick={submit} disabled={errorCount > 0 || !verified || Object.values(values).every(v => v === null)} className="w-full">
             {errorCount > 0
               ? "Fix flagged values to continue"
               : warningCount > 0
-                ? "Generate recommendation (review warnings first)"
-                : "Generate recommendation"}
+                ? "View interpretation (review warnings first)"
+                : "View interpretation"}
           </Button>
           <Button variant="outline" onClick={startOver} className="w-full">
             Discard and start over

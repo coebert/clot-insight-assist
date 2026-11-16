@@ -1,4 +1,12 @@
-# Dependency security remediation
+# Clinical safety and workflow correction
+
+- [ ] Correct engine validation, clinical context, reference intervals and conditional findings.
+- [ ] Bind display verification to exact session values/context and harden storage/reset.
+- [ ] Correct camera cancellation, coherent frames, OCR rejection and cloud consent.
+- [ ] Align rules, diagrams and citations with the engine.
+- [ ] Run regression tests and synthetic desktop/mobile flows; record verification and commit without publishing.
+
+## Earlier dependency security remediation
 
 - [x] Upgrade compatible TanStack packages and patched sanitization/serialization dependencies.
 - [x] Audit the full Bun lockfile, including Zod, Vite, and development/transitive packages; apply compatible fixes.

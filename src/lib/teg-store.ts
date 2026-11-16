@@ -1,141 +1,76 @@
-// Client-side session-only store for the current TEG case.
-// Nothing is persisted to a database — sessionStorage is intentional so the
-// data disappears when the tab closes.
-//
-// Components read/write through `useTegSession()`, which subscribes to a
-// tiny in-module event bus so every mounted screen stays in sync. The
-// primitive `save*`/`load*` helpers remain for one-off callers (server-fn
-// results, route guards) that don't need to subscribe.
-
 import { useSyncExternalStore } from "react";
-import { EMPTY_VALUES, type Population, type TegValues } from "./teg-algorithm";
-
-// Re-export so existing `import { EMPTY_VALUES } from "@/lib/teg-store"`
-// call sites keep working while the canonical definition lives with the schema.
+import { EMPTY_CONTEXT, EMPTY_VALUES, KEYS, validateAll, validContext, type ClinicalContext, type Population, type TegValues } from "./teg-algorithm";
 export { EMPTY_VALUES };
-
-const VALUES_KEY = "teg-values-v1";
-const POP_KEY = "teg-population-v1";
-const DISCLAIMER_KEY = "teg-disclaimer-ack-v1";
-
-// ---------------------------------------------------------------------------
-// Tiny pub/sub so mounted `useTegSession` consumers see updates from siblings
-// without a full context provider. sessionStorage doesn't fire `storage`
-// events for the same tab, hence the manual bus.
-// ---------------------------------------------------------------------------
-type Listener = () => void;
-const listeners = new Set<Listener>();
-function emit() {
-  listeners.forEach((l) => l());
-}
-function subscribe(l: Listener): () => void {
-  listeners.add(l);
-  return () => listeners.delete(l);
-}
-
-// ---------------------------------------------------------------------------
-// Primitive read/write helpers — safe on the server (return sensible empties).
-// ---------------------------------------------------------------------------
-export function hasSavedValues(): boolean {
-  if (typeof window === "undefined") return false;
-  return sessionStorage.getItem(VALUES_KEY) !== null;
-}
-
-export function saveValues(v: TegValues) {
-  if (typeof window === "undefined") return;
-  sessionStorage.setItem(VALUES_KEY, JSON.stringify(v));
-  emit();
-}
-
-export function loadValues(): TegValues {
-  if (typeof window === "undefined") return EMPTY_VALUES;
-  try {
-    const raw = sessionStorage.getItem(VALUES_KEY);
-    if (!raw) return EMPTY_VALUES;
-    return { ...EMPTY_VALUES, ...JSON.parse(raw) };
-  } catch {
-    return EMPTY_VALUES;
+const KEY = "clot-clarity-case-v2";
+type Case = { values: TegValues; context: ClinicalContext; verified: string | null; hasValues: boolean };
+const emptyCase = (): Case => ({ values: { ...EMPTY_VALUES }, context: { ...EMPTY_CONTEXT }, verified: null, hasValues: false });
+export function fingerprint(values: TegValues, context: ClinicalContext) { return JSON.stringify([KEYS.map(k => values[k]), context.adultConfirmed, context.cartridgeConfirmed, context.population, context.bleeding, context.indication, context.withinThreeHours]); }
+export function createSessionStore(storage: () => Pick<Storage, "getItem" | "setItem" | "removeItem"> | null) {
+  let current = emptyCase();
+  let loaded = false;
+  let storageFailed = false;
+  const listeners = new Set<() => void>();
+  function read() {
+    if (loaded) return current;
+    loaded = true;
+    try {
+      const raw = storage()?.getItem(KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && Object.keys(parsed).length === 4 && validateAll(parsed.values).every(i => i.severity !== "error") && validContext(parsed.context) && typeof parsed.hasValues === "boolean") {
+          const token = fingerprint(parsed.values, parsed.context);
+          current = { values: { ...parsed.values }, context: { ...parsed.context }, hasValues: parsed.hasValues, verified: parsed.verified === token ? token : null };
+        } else storage()?.removeItem(KEY);
+      }
+      // Deliberately never migrate old unverified values or patient context.
+      for (const old of ["teg-values-v1", "teg-population-v1"]) storage()?.removeItem(old);
+    } catch { storageFailed = true; }
+    return current;
   }
-}
-
-export function clearValues() {
-  if (typeof window === "undefined") return;
-  sessionStorage.removeItem(VALUES_KEY);
-  sessionStorage.removeItem(POP_KEY);
-  emit();
-}
-
-export function savePopulation(p: Population) {
-  if (typeof window === "undefined") return;
-  sessionStorage.setItem(POP_KEY, p);
-  emit();
-}
-
-export function loadPopulation(): Population {
-  if (typeof window === "undefined") return "standard";
-  return sessionStorage.getItem(POP_KEY) === "pregnant" ? "pregnant" : "standard";
-}
-
-export function hasAckDisclaimer() {
-  if (typeof window === "undefined") return false;
-  return sessionStorage.getItem(DISCLAIMER_KEY) === "1";
-}
-export function ackDisclaimer() {
-  if (typeof window === "undefined") return;
-  sessionStorage.setItem(DISCLAIMER_KEY, "1");
-  emit();
-}
-
-// ---------------------------------------------------------------------------
-// Reactive hook. Cached snapshots keep `useSyncExternalStore` happy — the
-// contract requires reference equality across renders when nothing changed.
-// ---------------------------------------------------------------------------
-type Snapshot = {
-  values: TegValues;
-  population: Population;
-  hasValues: boolean;
-};
-
-let cached: Snapshot | null = null;
-function getSnapshot(): Snapshot {
-  const values = loadValues();
-  const population = loadPopulation();
-  const hasValues = hasSavedValues();
-  if (
-    cached &&
-    cached.population === population &&
-    cached.hasValues === hasValues &&
-    shallowEqValues(cached.values, values)
-  ) {
-    return cached;
+  function write(next: Case) {
+    loaded = true;
+    current = next;
+    if (!storageFailed) {
+      try { storage()?.setItem(KEY, JSON.stringify(current)); }
+      catch {
+        storageFailed = true;
+        // Remove any previously saved case; failed writes must not resurrect it.
+        try { storage()?.removeItem(KEY); } catch { /* blocked storage: in-memory only */ }
+      }
+    }
+    listeners.forEach(l => l());
   }
-  cached = { values, population, hasValues };
-  return cached;
+  return {
+    read,
+    subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
+    saveValues(values: TegValues) { const c = read(); write({ ...c, values: { ...values }, hasValues: true, verified: null }); },
+    saveContext(context: ClinicalContext) { const c = read(); write({ ...c, context: { ...context }, verified: null }); },
+    verify() {
+      const c = read();
+      if (!c.hasValues || validateAll(c.values).some(i => i.severity === "error") || KEYS.every(k => c.values[k] === null) || !validContext(c.context) || !c.context.adultConfirmed || !c.context.cartridgeConfirmed) return false;
+      write({ ...c, verified: fingerprint(c.values, c.context) }); return true;
+    },
+    revoke() { write({ ...read(), verified: null }); },
+    isVerified() { const c = read(); return c.verified !== null && c.verified === fingerprint(c.values, c.context) && c.hasValues && !validateAll(c.values).some(i => i.severity === "error") && c.context.adultConfirmed && c.context.cartridgeConfirmed && KEYS.some(k => c.values[k] !== null); },
+    clear() { write(emptyCase()); },
+  };
 }
-
-function shallowEqValues(a: TegValues, b: TegValues): boolean {
-  return (
-    a.CK_R === b.CK_R &&
-    a.CKH_R === b.CKH_R &&
-    a.CRT_MA === b.CRT_MA &&
-    a.CFF_MA === b.CFF_MA &&
-    a.CK_LY30 === b.CK_LY30
-  );
-}
-
-const EMPTY_SNAPSHOT: Snapshot = {
-  values: EMPTY_VALUES,
-  population: "standard",
-  hasValues: false,
-};
-function getServerSnapshot(): Snapshot {
-  return EMPTY_SNAPSHOT;
-}
-
-/**
- * Reactive read of the current TEG session. Any `saveValues`,
- * `savePopulation`, or `clearValues` call re-renders every consumer.
- */
-export function useTegSession(): Snapshot {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+const session = createSessionStore(() => typeof window === "undefined" ? null : window.sessionStorage);
+export const saveValues = (v: TegValues) => session.saveValues(v);
+export const loadValues = () => typeof window === "undefined" ? EMPTY_VALUES : session.read().values;
+export const hasSavedValues = () => typeof window !== "undefined" && session.read().hasValues;
+export const clearValues = () => session.clear();
+export const saveContext = (c: ClinicalContext) => session.saveContext(c);
+export const savePopulation = (p: Population) => session.saveContext({ ...session.read().context, population: p });
+export const loadPopulation = () => session.read().context.population;
+export const verifyCase = () => session.verify();
+export const revokeVerification = () => session.revoke();
+export const isCaseVerified = () => typeof window !== "undefined" && session.isVerified();
+let acknowledged = false;
+export const ackDisclaimer = () => { acknowledged = true; };
+export const hasAckDisclaimer = () => acknowledged;
+const SERVER = emptyCase();
+export function useTegSession() {
+  const snapshot = useSyncExternalStore(session.subscribe, session.read, () => SERVER);
+  return { ...snapshot, population: snapshot.context.population };
 }
