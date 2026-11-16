@@ -29,7 +29,7 @@ const ResultSchema = z.object({
 export type ExtractResult = z.infer<typeof ResultSchema>;
 
 export const extractTegValues = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => InputSchema.parse(d))
+  .validator((d: unknown) => InputSchema.parse(d))
   .handler(async ({ data }): Promise<ExtractResult> => {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY not configured");
