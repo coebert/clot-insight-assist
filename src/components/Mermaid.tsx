@@ -18,8 +18,7 @@ function ensureInit() {
       secondaryColor: "#1f2230",
       tertiaryColor: "#1a1d28",
       tertiaryTextColor: "#f5f5f5",
-      fontFamily:
-        'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
+      fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
     },
     flowchart: { htmlLabels: true, curve: "basis", padding: 12 },
   });
@@ -58,8 +57,7 @@ export function Mermaid({ chart }: { chart: string }) {
   return (
     <div
       ref={ref}
-      className="mermaid-host overflow-x-auto rounded-lg border border-border bg-card/60 p-4 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
-      // eslint-disable-next-line react/no-danger
+      className="mermaid-host overflow-x-auto rounded-lg border border-border bg-card/60 p-4 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:min-w-[680px] [&_svg]:max-w-full"
       dangerouslySetInnerHTML={{ __html: svg ?? "" }}
     />
   );

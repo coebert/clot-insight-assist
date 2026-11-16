@@ -1,11 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
-import {
-  CITATION,
-  getParamMeta,
-  interpret,
-  type TegValues,
-} from "@/lib/teg-algorithm";
+import { CITATION, getParamMeta, interpret, type TegValues } from "@/lib/teg-algorithm";
 import { clearValues, hasSavedValues, isCaseVerified, useTegSession } from "@/lib/teg-store";
 import { DisclaimerBanner } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
@@ -14,15 +9,18 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/results")({
   head: () => ({
     meta: [
-      { property: "og:title", content: "Recommendation — TEG 6s Advisor" },
-      { property: "og:description", content: "Verified TEG 6s findings with clinical safeguards and unavailable assessments." },
+      { property: "og:title", content: "Interpretation — Clot Clarity" },
+      {
+        property: "og:description",
+        content: "Verified TEG 6s findings with clinical safeguards and unavailable assessments.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { title: "Recommendation — TEG 6s Advisor" },
+      { title: "Interpretation — Clot Clarity" },
       {
         name: "description",
         content:
-          "Blood product recommendations derived from the entered TEG 6s parameters.",
+          "Verified original TEG 6s findings with clinical context and laboratory correlation.",
       },
     ],
   }),
@@ -48,7 +46,6 @@ function Results() {
     () => interpret(values, context),
     [values, context],
   );
-
 
   const startOver = () => {
     // Explicit confirm — the recommendation is transient and can't be recovered
@@ -78,7 +75,8 @@ function Results() {
 
         {population === "pregnant" && (
           <div className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-foreground">
-            <strong>Obstetric context:</strong> no validated local obstetric algorithm configured. No automated product or dose decisions.
+            <strong>Obstetric context:</strong> no validated local obstetric algorithm configured.
+            No automated product or dose decisions.
           </div>
         )}
 
@@ -98,24 +96,45 @@ function Results() {
 
         {missing.length > 0 && (
           <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-            Missing values: {missing.map((k) => meta[k].label).join(", ")}.
-            These are unavailable assessments, not reassuring findings.
+            Missing values: {missing.map((k) => meta[k].label).join(", ")}. These are unavailable
+            assessments, not reassuring findings.
           </div>
         )}
 
         <section className="space-y-3" aria-label="Clinical safeguards">
-          {guidance.map(text => <p key={text} className="text-sm text-warning">{text}</p>)}
-          {unavailable.map(text => <p key={text} className="text-sm text-muted-foreground">{text}</p>)}
-          {abnormal.length > 0 && <div><h2 className="font-semibold">Outside manufacturer reference intervals{population === 'pregnant' ? ' (non-obstetric comparison only)' : ''}</h2><ul className="mt-2 space-y-1 text-sm">{abnormal.map(a => <li key={a.key}>{meta[a.key].label}: {a.value} {meta[a.key].unit} — {a.direction}; not a diagnosis or treatment indication</li>)}</ul></div>}
+          {guidance.map((text) => (
+            <p key={text} className="text-sm text-warning">
+              {text}
+            </p>
+          ))}
+          {unavailable.map((text) => (
+            <p key={text} className="text-sm text-muted-foreground">
+              {text}
+            </p>
+          ))}
+          {abnormal.length > 0 && (
+            <div>
+              <h2 className="font-semibold">
+                Outside manufacturer reference intervals
+                {population === "pregnant" ? " (non-obstetric comparison only)" : ""}
+              </h2>
+              <ul className="mt-2 space-y-1 text-sm">
+                {abnormal.map((a) => (
+                  <li key={a.key}>
+                    {meta[a.key].label}: {a.value} {meta[a.key].unit} — {a.direction}; not a
+                    diagnosis or treatment indication
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
         <section className="space-y-3">
           {recommendations.map((r) => (
             <article
               key={r.id}
               className={`rounded-lg border p-4 ${
-                r.severity === "action"
-                  ? "border-primary/30 bg-primary/5"
-                  : "border-border bg-card"
+                r.severity === "action" ? "border-primary/30 bg-primary/5" : "border-border bg-card"
               }`}
             >
               <header className="flex items-baseline justify-between gap-2">
@@ -125,7 +144,9 @@ function Results() {
                 </span>
               </header>
               <p className="mt-1 text-sm font-medium">{r.finding}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Illustrative trigger: {r.trigger}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Illustrative trigger: {r.trigger}
+              </p>
               {r.dose !== "—" && (
                 <p className="mt-2 text-sm">
                   <span className="font-semibold">Suggested dose: </span>

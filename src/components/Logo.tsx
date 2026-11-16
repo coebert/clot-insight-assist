@@ -20,9 +20,7 @@ export function Logo({
         className="drop-shadow-[0_0_12px_rgba(220,38,60,0.35)]"
       />
       {withWordmark && (
-        <span className="text-base font-semibold tracking-tight text-foreground">
-          Clot Clarity
-        </span>
+        <span className="text-base font-semibold tracking-tight text-foreground">Clot Clarity</span>
       )}
     </div>
   );

@@ -1,16 +1,163 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { DisclaimerBanner } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
-import { CITATION, KEYS, PARAM_META, PLAUSIBLE, RULES, NO_THRESHOLD } from "@/lib/teg-algorithm";
+import {
+  CITATION,
+  INTERVAL_NOTE,
+  KEYS,
+  PARAM_META,
+  PLAUSIBLE,
+  RULES,
+  NO_THRESHOLD,
+} from "@/lib/teg-algorithm";
 import { referencesFor } from "@/lib/teg-references";
-export const Route = createFileRoute("/rules")({ head: () => ({ meta: [{ title: "Rules reference — Clot Clarity" }, { name: "description", content: "Clinical gates, illustrative TEG6s findings and source-specific limitations." }, { property: "og:title", content: "Rules reference — Clot Clarity" }, { property: "og:description", content: "Original Global Hemostasis reference intervals, clinical gates and limitations." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: RulesPage });
-function RulesPage() { return <main className="min-h-screen px-4 py-8"><div className="mx-auto max-w-3xl space-y-8">
-  <div className="flex justify-between"><Link to="/" className="text-sm text-muted-foreground underline">← Home</Link><Logo size={28} withWordmark /></div>
-  <h1 className="text-3xl font-bold">Rules reference</h1><DisclaimerBanner />
-  <section className="space-y-3"><h2 className="text-lg font-semibold">Clinical gates</h2><p>Adult (18+) and original Global Hemostasis CK/CKH/CRT/CFF cartridge confirmation are required. Not HN, other cartridges or devices. Every exact value and context must be verified against the display; editing revokes verification.</p><p>Invalid inputs block all findings. At least one completed parameter is required. Missing parameters mean unavailable assessments, never normal results. Unknown or absent bleeding produces findings only, no transfusion or dose instructions. Cross-field warnings suppress product considerations.</p><p className="text-warning">Major haemorrhage: escalate immediately; do not wait for full TEG. These adult triggers are illustrative, not universal validated treatment cutoffs or a validated local protocol.</p></section>
-  <section className="space-y-3"><h2 className="text-lg font-semibold">Manufacturer reference intervals — revision AB</h2><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left"><th className="p-2">Parameter</th><th className="p-2">Reference interval</th><th className="p-2">Plausible input</th></tr></thead><tbody>{KEYS.map(k => <tr key={k} className="border-t"><td className="p-2">{PARAM_META[k].label}</td><td className="p-2">{PARAM_META[k].normal} {PARAM_META[k].unit}</td><td className="p-2">{PLAUSIBLE[k].join('–')} {PARAM_META[k].unit}</td></tr>)}</tbody></table></div><p className="text-sm text-muted-foreground">Intervals are not treatment thresholds. High MA/short R is flagged separately, not diagnosed as thrombosis or an indication for anticoagulation. Use applicable current cartridge IFU and local reference validation.</p></section>
-  <section className="space-y-3"><h2 className="text-lg font-semibold">Obstetric context</h2><p>No validated local obstetric algorithm configured. No pregnancy numerical reference intervals or treatment thresholds; no automated product/dose decisions. Manufacturer non-obstetric intervals and illustrative adult triggers can support descriptive/lab correlation only. CFF A10 ≤17 mm in Roberts 2021 is NOT MA; no A10-to-MA substitution or MA-to-fibrinogen conversion is made.</p></section>
-  <section className="space-y-4"><h2 className="text-lg font-semibold">Illustrative finding ladder</h2>{RULES.map(r => <article key={r.id} className="border-b border-border pb-4"><h3 className="font-semibold">{r.finding}</h3><p className="mt-2 text-sm">{r.condition}</p><p className="mt-2 text-sm text-muted-foreground">{r.rationale}</p><p className="mt-2 text-sm">{r.id === 'ffp' ? 'Plasma can be considered only with CKH.R available and clinical/lab assessment, not proven factor deficiency.' : r.id === 'cryo' ? 'Consider fibrinogen replacement only under local major haemorrhage protocol with lab correlation.' : r.id === 'platelets' ? 'Platelets considered only with CFF.MA ≥15 mm; both low means possible combined deficits and reassessment, not isolated platelet deficiency.' : 'No drug or dose instruction is derived from this trigger.'} Product considerations require active significant bleeding, non-obstetric adult context and no cross-field warnings. All doses follow local protocols; no numeric prescription is generated.</p><ul className="mt-2 space-y-2 text-xs text-muted-foreground">{referencesFor(r.reference).map(ref => <li key={ref.id}><a href={ref.url} target="_blank" rel="noreferrer" className="text-primary underline">{ref.citation}</a><p>{ref.limitation}</p></li>)}</ul></article>)}<p>{NO_THRESHOLD}</p></section>
-  <section className="space-y-3"><h2 className="text-lg font-semibold">TXA is indication- and timing-dependent, not LY30-dependent</h2><p>Bleeding trauma (or risk of significant bleeding): prompt guideline assessment within 3 hours of injury; do not await viscoelastic results. Confirmed PPH: within 3 hours of birth, not diagnosis. The app gives conditional context guidance without numerical doses. Pregnancy alone is not PPH. Normal LY30 cannot exclude important fibrinolysis. Unknown/late timing does not generate an automatic TXA instruction.</p></section>
-  <p className="text-xs text-muted-foreground">{CITATION}</p><Link to="/algorithm" className="text-primary underline">Decision diagrams and searchable references →</Link>
-</div></main>; }
+export const Route = createFileRoute("/rules")({
+  head: () => ({
+    meta: [
+      { title: "Rules reference — Clot Clarity" },
+      {
+        name: "description",
+        content: "Clinical gates, illustrative TEG6s findings and source-specific limitations.",
+      },
+      { property: "og:title", content: "Rules reference — Clot Clarity" },
+      {
+        property: "og:description",
+        content: "Original Global Hemostasis reference intervals, clinical gates and limitations.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: RulesPage,
+});
+function RulesPage() {
+  return (
+    <main className="min-h-screen px-4 py-8">
+      <div className="mx-auto max-w-3xl space-y-8">
+        <div className="flex justify-between">
+          <Link to="/" className="text-sm text-muted-foreground underline">
+            ← Home
+          </Link>
+          <Logo size={28} withWordmark />
+        </div>
+        <h1 className="text-3xl font-bold">Rules reference</h1>
+        <DisclaimerBanner />
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Clinical gates</h2>
+          <p>
+            Adult (18+) and original Global Hemostasis CK/CKH/CRT/CFF cartridge confirmation are
+            required. Not HN, other cartridges or devices. Every exact value and context must be
+            verified against the display; editing revokes verification.
+          </p>
+          <p>
+            Invalid inputs block all findings. At least one completed parameter is required. Missing
+            parameters mean unavailable assessments, never normal results. Unknown or absent
+            bleeding produces findings only, no transfusion or dose instructions. Cross-field
+            warnings suppress product considerations.
+          </p>
+          <p className="text-warning">
+            Major haemorrhage: escalate immediately; do not wait for full TEG. These adult triggers
+            are illustrative, not universal validated treatment cutoffs or a validated local
+            protocol.
+          </p>
+        </section>
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Versioned manufacturer reference intervals</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left">
+                  <th className="p-2">Parameter</th>
+                  <th className="p-2">Reference interval</th>
+                  <th className="p-2">Plausible input</th>
+                </tr>
+              </thead>
+              <tbody>
+                {KEYS.map((k) => (
+                  <tr key={k} className="border-t">
+                    <td className="p-2">{PARAM_META[k].label}</td>
+                    <td className="p-2">
+                      {PARAM_META[k].normal} {PARAM_META[k].unit}
+                    </td>
+                    <td className="p-2">
+                      {PLAUSIBLE[k].join("–")} {PARAM_META[k].unit}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {INTERVAL_NOTE} Intervals are not treatment thresholds. High MA/short R is flagged
+            separately, not diagnosed as thrombosis or an indication for anticoagulation. Use
+            applicable current cartridge IFU and local reference validation.
+          </p>
+        </section>
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Obstetric context</h2>
+          <p>
+            No validated local obstetric algorithm configured. No pregnancy numerical reference
+            intervals or treatment thresholds; no automated product/dose decisions. Manufacturer
+            non-obstetric intervals and illustrative adult triggers can support descriptive/lab
+            correlation only. CFF A10 ≤17 mm in Roberts 2021 is NOT MA; no A10-to-MA substitution or
+            MA-to-fibrinogen conversion is made.
+          </p>
+        </section>
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Illustrative finding ladder</h2>
+          {RULES.map((r) => (
+            <article key={r.id} className="border-b border-border pb-4">
+              <h3 className="font-semibold">{r.finding}</h3>
+              <p className="mt-2 text-sm">{r.condition}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{r.rationale}</p>
+              <p className="mt-2 text-sm">
+                {r.id === "ffp"
+                  ? "Plasma can be considered only with CKH.R available and clinical/lab assessment, not proven factor deficiency."
+                  : r.id === "cryo"
+                    ? "Consider fibrinogen replacement only under local major haemorrhage protocol with lab correlation."
+                    : r.id === "platelets"
+                      ? "Platelets considered only with CFF.MA ≥15 mm; both low means possible combined deficits and reassessment, not isolated platelet deficiency."
+                      : "No drug or dose instruction is derived from this trigger."}{" "}
+                Product considerations require active significant bleeding, non-obstetric adult
+                context and no cross-field warnings. All doses follow local protocols; no numeric
+                prescription is generated.
+              </p>
+              <ul className="mt-2 space-y-2 text-xs text-muted-foreground">
+                {referencesFor(r.reference).map((ref) => (
+                  <li key={ref.id}>
+                    <a
+                      href={ref.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary underline"
+                    >
+                      {ref.citation}
+                    </a>
+                    <p>{ref.limitation}</p>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
+          <p>{NO_THRESHOLD}</p>
+        </section>
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">
+            TXA is indication- and timing-dependent, not LY30-dependent
+          </h2>
+          <p>
+            Bleeding trauma (or risk of significant bleeding): prompt guideline assessment within 3
+            hours of injury; do not await viscoelastic results. Confirmed PPH: within 3 hours of
+            birth, not diagnosis. The app gives conditional context guidance without numerical
+            doses. Pregnancy alone is not PPH. Normal LY30 cannot exclude important fibrinolysis.
+            Unknown/late timing does not generate an automatic TXA instruction.
+          </p>
+        </section>
+        <p className="text-xs text-muted-foreground">{CITATION}</p>
+        <Link to="/algorithm" className="text-primary underline">
+          Decision diagrams and searchable references →
+        </Link>
+      </div>
+    </main>
+  );
+}

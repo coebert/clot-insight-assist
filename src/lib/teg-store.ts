@@ -1,14 +1,46 @@
 import { useSyncExternalStore } from "react";
-import { EMPTY_CONTEXT, EMPTY_VALUES, KEYS, validateAll, validContext, type ClinicalContext, type Population, type TegValues } from "./teg-algorithm";
+import {
+  EMPTY_CONTEXT,
+  EMPTY_VALUES,
+  KEYS,
+  validateAll,
+  validContext,
+  type ClinicalContext,
+  type Population,
+  type TegValues,
+} from "./teg-algorithm";
 export { EMPTY_VALUES };
 const KEY = "clot-clarity-case-v2";
-type Case = { values: TegValues; context: ClinicalContext; verified: string | null; hasValues: boolean };
-const emptyCase = (): Case => ({ values: { ...EMPTY_VALUES }, context: { ...EMPTY_CONTEXT }, verified: null, hasValues: false });
-export function fingerprint(values: TegValues, context: ClinicalContext) { return JSON.stringify([KEYS.map(k => values[k]), context.adultConfirmed, context.cartridgeConfirmed, context.population, context.bleeding, context.indication, context.withinThreeHours]); }
-export function createSessionStore(storage: () => Pick<Storage, "getItem" | "setItem" | "removeItem"> | null) {
+type Case = {
+  values: TegValues;
+  context: ClinicalContext;
+  verified: string | null;
+  hasValues: boolean;
+  storageWarning: boolean;
+};
+const emptyCase = (): Case => ({
+  values: { ...EMPTY_VALUES },
+  context: { ...EMPTY_CONTEXT },
+  verified: null,
+  hasValues: false,
+  storageWarning: false,
+});
+export function fingerprint(values: TegValues, context: ClinicalContext) {
+  return JSON.stringify([
+    KEYS.map((k) => values[k]),
+    context.adultConfirmed,
+    context.cartridgeConfirmed,
+    context.population,
+    context.bleeding,
+    context.indication,
+    context.withinThreeHours,
+  ]);
+}
+export function createSessionStore(
+  storage: () => Pick<Storage, "getItem" | "setItem" | "removeItem"> | null,
+) {
   let current = emptyCase();
   let loaded = false;
-  let storageFailed = false;
   const listeners = new Set<() => void>();
   function read() {
     if (loaded) return current;
@@ -16,61 +48,142 @@ export function createSessionStore(storage: () => Pick<Storage, "getItem" | "set
     try {
       const raw = storage()?.getItem(KEY);
       if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object" && Object.keys(parsed).length === 4 && validateAll(parsed.values).every(i => i.severity !== "error") && validContext(parsed.context) && typeof parsed.hasValues === "boolean") {
-          const token = fingerprint(parsed.values, parsed.context);
-          current = { values: { ...parsed.values }, context: { ...parsed.context }, hasValues: parsed.hasValues, verified: parsed.verified === token ? token : null };
+        const p = JSON.parse(raw);
+        if (
+          p &&
+          typeof p === "object" &&
+          Object.keys(p).every((k) =>
+            ["values", "context", "verified", "hasValues", "storageWarning"].includes(k),
+          ) &&
+          validateAll(p.values).every((i) => i.severity !== "error") &&
+          validContext(p.context) &&
+          typeof p.hasValues === "boolean"
+        ) {
+          const token = fingerprint(p.values, p.context);
+          current = {
+            values: { ...p.values },
+            context: { ...p.context },
+            hasValues: p.hasValues,
+            verified: p.verified === token ? token : null,
+            storageWarning: false,
+          };
         } else storage()?.removeItem(KEY);
       }
-      // Deliberately never migrate old unverified values or patient context.
-      for (const old of ["teg-values-v1", "teg-population-v1"]) storage()?.removeItem(old);
-    } catch { storageFailed = true; }
-    return current;
-  }
-  function write(next: Case) {
-    loaded = true;
-    current = next;
-    if (!storageFailed) {
-      try { storage()?.setItem(KEY, JSON.stringify(current)); }
-      catch {
-        storageFailed = true;
-        // Remove any previously saved case; failed writes must not resurrect it.
-        try { storage()?.removeItem(KEY); } catch { /* blocked storage: in-memory only */ }
+    } catch {
+      current = { ...emptyCase(), storageWarning: true };
+      try {
+        storage()?.removeItem(KEY);
+      } catch {
+        /* Retry on every subsequent write/clear. */
       }
     }
-    listeners.forEach(l => l());
+    // Failure to clean obsolete keys must not disable persistence of this case.
+    for (const old of ["teg-values-v1", "teg-population-v1"]) {
+      try {
+        storage()?.removeItem(old);
+      } catch {
+        /* Never imported. */
+      }
+    }
+    return current;
+  }
+  function write(next: Case, clear = false) {
+    loaded = true;
+    current = { ...next, storageWarning: false };
+    try {
+      if (clear) storage()?.removeItem(KEY);
+      else storage()?.setItem(KEY, JSON.stringify(current));
+    } catch {
+      current = { ...current, storageWarning: true };
+      try {
+        storage()?.removeItem(KEY);
+      } catch {
+        /* Browser refuses all storage: deletion cannot be guaranteed. */
+      }
+    }
+    listeners.forEach((l) => l());
   }
   return {
     read,
-    subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
-    saveValues(values: TegValues) { const c = read(); write({ ...c, values: { ...values }, hasValues: true, verified: null }); },
-    saveContext(context: ClinicalContext) { const c = read(); write({ ...c, context: { ...context }, verified: null }); },
+    subscribe(l: () => void) {
+      listeners.add(l);
+      return () => {
+        listeners.delete(l);
+      };
+    },
+    begin(values: TegValues) {
+      write({ ...emptyCase(), values: { ...values }, hasValues: true });
+    },
+    saveValues(values: TegValues) {
+      write({ ...read(), values: { ...values }, hasValues: true, verified: null });
+    },
+    saveContext(context: ClinicalContext) {
+      write({ ...read(), context: { ...context }, verified: null });
+    },
     verify() {
       const c = read();
-      if (!c.hasValues || validateAll(c.values).some(i => i.severity === "error") || KEYS.every(k => c.values[k] === null) || !validContext(c.context) || !c.context.adultConfirmed || !c.context.cartridgeConfirmed) return false;
-      write({ ...c, verified: fingerprint(c.values, c.context) }); return true;
+      if (
+        !c.hasValues ||
+        validateAll(c.values).some((i) => i.severity === "error") ||
+        KEYS.every((k) => c.values[k] === null) ||
+        !validContext(c.context) ||
+        !c.context.adultConfirmed ||
+        !c.context.cartridgeConfirmed
+      )
+        return false;
+      write({ ...c, verified: fingerprint(c.values, c.context) });
+      return true;
     },
-    revoke() { write({ ...read(), verified: null }); },
-    isVerified() { const c = read(); return c.verified !== null && c.verified === fingerprint(c.values, c.context) && c.hasValues && !validateAll(c.values).some(i => i.severity === "error") && c.context.adultConfirmed && c.context.cartridgeConfirmed && KEYS.some(k => c.values[k] !== null); },
-    clear() { write(emptyCase()); },
+    revoke() {
+      write({ ...read(), verified: null });
+    },
+    isVerified() {
+      const c = read();
+      return (
+        c.verified !== null &&
+        c.verified === fingerprint(c.values, c.context) &&
+        c.hasValues &&
+        validContext(c.context) &&
+        !validateAll(c.values).some((i) => i.severity === "error") &&
+        c.context.adultConfirmed &&
+        c.context.cartridgeConfirmed &&
+        KEYS.some((k) => c.values[k] !== null)
+      );
+    },
+    clear() {
+      write(emptyCase(), true);
+    },
   };
 }
-const session = createSessionStore(() => typeof window === "undefined" ? null : window.sessionStorage);
-export const saveValues = (v: TegValues) => session.saveValues(v);
-export const loadValues = () => typeof window === "undefined" ? EMPTY_VALUES : session.read().values;
-export const hasSavedValues = () => typeof window !== "undefined" && session.read().hasValues;
-export const clearValues = () => session.clear();
-export const saveContext = (c: ClinicalContext) => session.saveContext(c);
-export const savePopulation = (p: Population) => session.saveContext({ ...session.read().context, population: p });
-export const loadPopulation = () => session.read().context.population;
-export const verifyCase = () => session.verify();
-export const revokeVerification = () => session.revoke();
-export const isCaseVerified = () => typeof window !== "undefined" && session.isVerified();
-let acknowledged = false;
-export const ackDisclaimer = () => { acknowledged = true; };
-export const hasAckDisclaimer = () => acknowledged;
-const SERVER = emptyCase();
+// No mutable case store exists on the server. Future server callers cannot share patient context.
+let browserSession: ReturnType<typeof createSessionStore> | undefined;
+function session() {
+  if (typeof window === "undefined") return undefined;
+  browserSession ??= createSessionStore(() => window.sessionStorage);
+  return browserSession;
+}
+export const beginCase = (v: TegValues) => session()?.begin(v);
+export const saveValues = (v: TegValues) => session()?.saveValues(v);
+export const loadValues = () => session()?.read().values ?? { ...EMPTY_VALUES };
+export const hasSavedValues = () => session()?.read().hasValues ?? false;
+export const clearValues = () => session()?.clear();
+export const saveContext = (c: ClinicalContext) => session()?.saveContext(c);
+export const savePopulation = (p: Population) => {
+  const s = session();
+  if (s) s.saveContext({ ...s.read().context, population: p });
+};
+export const loadPopulation = () => session()?.read().context.population ?? "standard";
+export const verifyCase = () => session()?.verify() ?? false;
+export const revokeVerification = () => session()?.revoke();
+export const isCaseVerified = () => session()?.isVerified() ?? false;
+const SERVER = Object.freeze({
+  ...emptyCase(),
+  values: Object.freeze({ ...EMPTY_VALUES }),
+  context: Object.freeze({ ...EMPTY_CONTEXT }),
+});
+const subscribe = (listener: () => void) => session()?.subscribe(listener) ?? (() => {});
+const snapshot = () => session()?.read() ?? SERVER;
 export function useTegSession() {
-  const snapshot = useSyncExternalStore(session.subscribe, session.read, () => SERVER);
-  return { ...snapshot, population: snapshot.context.population };
+  const state = useSyncExternalStore(subscribe, snapshot, () => SERVER);
+  return { ...state, population: state.context.population };
 }

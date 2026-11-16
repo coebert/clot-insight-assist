@@ -79,15 +79,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Clot Clarity" },
-      { name: "description", content: "Clot Clarity supports clinical review of original TEG 6s results with context and laboratory correlation." },
+      {
+        name: "description",
+        content:
+          "Clot Clarity supports clinical review of original TEG 6s results with context and laboratory correlation.",
+      },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "Clot Clarity" },
-      { property: "og:description", content: "Clot Clarity supports clinical review of original TEG 6s results with context and laboratory correlation." },
+      {
+        property: "og:description",
+        content:
+          "Clot Clarity supports clinical review of original TEG 6s results with context and laboratory correlation.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Clot Clarity" },
-      { name: "twitter:description", content: "Clot Clarity supports clinical review of original TEG 6s results with context and laboratory correlation." },
+      {
+        name: "twitter:description",
+        content:
+          "Clot Clarity supports clinical review of original TEG 6s results with context and laboratory correlation.",
+      },
     ],
     links: [
       {

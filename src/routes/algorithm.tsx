@@ -4,8 +4,8 @@ import { Search, X } from "lucide-react";
 import { Mermaid } from "@/components/Mermaid";
 import { DisclaimerBanner } from "@/components/Disclaimer";
 import { Logo } from "@/components/Logo";
-import { CITATION } from "@/lib/teg-algorithm";
-import { REFERENCES, referencesFor, type Reference } from "@/lib/teg-references";
+import { CITATION, INTERVAL_NOTE } from "@/lib/teg-algorithm";
+import { searchReferences, type Reference } from "@/lib/teg-references";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -25,7 +25,9 @@ function useDebouncedValue<T>(value: T, delay = 150): T {
 function ReferenceItem({ r }: { r: Reference }) {
   return (
     <li id={`ref-${r.id}`}>
-      <span>{r.citation} {r.limitation}</span>{" "}
+      <span>
+        {r.citation} {r.limitation}
+      </span>{" "}
       <a
         href={r.url}
         target="_blank"
@@ -38,24 +40,14 @@ function ReferenceItem({ r }: { r: Reference }) {
   );
 }
 
-
-const RULES_IN_ORDER = [
-  { id: 'channel-definitions', label: 'Original cartridge scope' },
-  { id: 'ranges-adult', label: 'Manufacturer reference intervals — not treatment cutoffs' },
-  { id: 'obstetric-evidence', label: 'Obstetric A10 evidence — NOT MA; no configured obstetric algorithm' },
-  { id: 'rule-ffp', label: 'Prolonged reaction time — clinical/lab assessment' },
-  { id: 'rule-protamine', label: 'Suspected heparin — exposure, contamination and SmPC' },
-  { id: 'rule-cryo', label: 'Reduced functional fibrin contribution' },
-  { id: 'rule-platelets', label: 'Reduced clot strength — combined deficits possible' },
-  { id: 'rule-txa', label: 'Trauma TXA — within 3 hours of injury, not LY30 gated' },
-  { id: 'rule-txa-pregnancy', label: 'PPH TXA — within 3 hours of birth, not pregnancy alone' },
-];
-
 export const Route = createFileRoute("/algorithm")({
   head: () => ({
     meta: [
       { property: "og:title", content: "Algorithm — Clot Clarity" },
-      { property: "og:description", content: "Clinical gates, illustrative findings, source limitations and decision diagrams." },
+      {
+        property: "og:description",
+        content: "Clinical gates, illustrative findings, source limitations and decision diagrams.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { title: "Algorithm — Clot Clarity" },
@@ -106,24 +98,14 @@ const THRESHOLDS = `flowchart TD
  T --> Unknown[Absent or unknown bleeding or timing outside or unknown - no automatic TXA instruction]
 `;
 const RANGES = `flowchart TD
- T[Revision AB manufacturer intervals - not treatment triggers] --> CK[CK.R 4.6 to 9.1 min]
+ T[Original cartridge insert AC 2016 intervals - verify current local IFU] --> CK[CK.R 4.6 to 9.1 min]
  T --> CKH[CKH.R 4.3 to 8.3 min]
  T --> CRT[CRT.MA 52 to 70 mm]
- T --> CFF[CFF.MA 13 to 30 mm]
+ T --> CFF[CFF.MA 15 to 32 mm]
  T --> LY[CK.LY30 0 to 2.6 percent]
  T --> OB[No validated local obstetric algorithm or pregnancy intervals configured]
  OB --> A10[Roberts 2021 CFF A10 at most 17 mm is NOT MA - not used as an MA cutoff]
 `;
-
-function matchesQuery(r: Reference, query: string): boolean {
-  const q = query.toLowerCase();
-  return (
-    r.citation.toLowerCase().includes(q) ||
-    r.id.toLowerCase().includes(q) ||
-    r.supports.some((s) => s.toLowerCase().includes(q)) ||
-    r.url.toLowerCase().includes(q)
-  );
-}
 
 function AlgorithmPage() {
   const [query, setQuery] = useState("");
@@ -133,21 +115,10 @@ function AlgorithmPage() {
   const debounced = useDebouncedValue(query, 150);
   const q = debounced.trim().toLowerCase();
 
-  const filteredRules = useMemo(() => {
-    if (!q) return RULES_IN_ORDER;
-    return RULES_IN_ORDER.filter(({ id, label }) => {
-      if (label.toLowerCase().includes(q) || id.toLowerCase().includes(q))
-        return true;
-      const refs = referencesFor(id);
-      return refs.some((r) => matchesQuery(r, q));
-    });
-  }, [q]);
-
-  const filteredBibliography = useMemo(() => {
-    if (!q) return REFERENCES;
-    return REFERENCES.filter((r) => matchesQuery(r, q));
-  }, [q]);
-
+  const { rules: filteredRules, bibliography: filteredBibliography } = useMemo(
+    () => searchReferences(q),
+    [q],
+  );
 
   return (
     <main className="min-h-screen px-4 py-8">
@@ -167,9 +138,9 @@ function AlgorithmPage() {
             Clinical safeguards and finding diagrams
           </h1>
           <p className="text-muted-foreground">
-            Clot Clarity uses a transparent, rule-based decision tree — no AI in
-            the decision path. The vision model only reads numbers from the
-            screen; every threshold below is fixed and auditable.
+            Clot Clarity uses a transparent, rule-based decision tree — no AI in the decision path.
+            The vision model only reads numbers from the screen; every threshold below is fixed and
+            auditable.
           </p>
         </header>
 
@@ -178,7 +149,9 @@ function AlgorithmPage() {
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">Decision tree</h2>
           <p className="text-sm text-muted-foreground">
-            Clinical gates precede findings. Product considerations require active bleeding in a non-obstetric adult context and local protocol/lab correlation. No numeric doses are calculated.
+            Clinical gates precede findings. Product considerations require active bleeding in a
+            non-obstetric adult context and local protocol/lab correlation. No numeric doses are
+            calculated.
           </p>
           <Mermaid chart={MAIN_FLOW} />
         </section>
@@ -186,13 +159,15 @@ function AlgorithmPage() {
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">TXA context and timing</h2>
           <p className="text-sm text-muted-foreground">
-            TXA guidance does not depend on elevated LY30. No validated local obstetric algorithm is configured.
+            TXA guidance does not depend on elevated LY30. No validated local obstetric algorithm is
+            configured.
           </p>
           <Mermaid chart={THRESHOLDS} />
         </section>
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">Reference ranges</h2>
+          <p className="text-sm text-muted-foreground">{INTERVAL_NOTE}</p>
           <Mermaid chart={RANGES} />
         </section>
 
@@ -200,7 +175,9 @@ function AlgorithmPage() {
           <div className="space-y-2">
             <h2 className="text-lg font-semibold">References</h2>
             <p className="text-sm text-muted-foreground">
-              Sources support the stated intervals or context-specific guidance; they do not validate the illustrative numeric ladder as a universal treatment algorithm. Limitations are listed with each source.
+              Sources support the stated intervals or context-specific guidance; they do not
+              validate the illustrative numeric ladder as a universal treatment algorithm.
+              Limitations are listed with each source.
             </p>
           </div>
 
@@ -214,7 +191,9 @@ function AlgorithmPage() {
               className="h-10 pl-9 pr-9"
             />
             {query && (
-              <Button variant="ghost" size="icon"
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setQuery("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 aria-label="Clear search"
@@ -227,24 +206,17 @@ function AlgorithmPage() {
           {q && (
             <p className="text-xs text-muted-foreground">
               {filteredRules.length} rule{filteredRules.length === 1 ? "" : "s"} and{" "}
-              {filteredBibliography.length} source{filteredBibliography.length === 1 ? "" : "s"} match.
+              {filteredBibliography.length} source{filteredBibliography.length === 1 ? "" : "s"}{" "}
+              match.
             </p>
           )}
 
           <div className="space-y-3">
-            {filteredRules.map(({ id, label }) => {
-              const refs = referencesFor(id).filter((r) =>
-                q ? matchesQuery(r, q) : true,
-              );
+            {filteredRules.map(({ id, label, references: refs }) => {
               if (refs.length === 0) return null;
               return (
-                <div
-                  key={id}
-                  className="rounded-lg border border-border bg-card/60 p-4"
-                >
-                  <h3 className="text-sm font-semibold text-foreground">
-                    {label}
-                  </h3>
+                <div key={id} className="rounded-lg border border-border bg-card/60 p-4">
+                  <h3 className="text-sm font-semibold text-foreground">{label}</h3>
                   <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs text-muted-foreground marker:text-primary">
                     {refs.map((r) => (
                       <ReferenceItem key={r.id} r={r} />
@@ -254,9 +226,7 @@ function AlgorithmPage() {
               );
             })}
             {q && filteredRules.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                No rules match your search.
-              </p>
+              <p className="text-sm text-muted-foreground">No rules match your search.</p>
             )}
           </div>
 
@@ -271,9 +241,7 @@ function AlgorithmPage() {
               ))}
             </ol>
             {q && filteredBibliography.length === 0 && (
-              <p className="mt-3 text-sm text-muted-foreground">
-                No sources match your search.
-              </p>
+              <p className="mt-3 text-sm text-muted-foreground">No sources match your search.</p>
             )}
           </details>
 
@@ -288,7 +256,6 @@ function AlgorithmPage() {
             <Link to="/">Home</Link>
           </Button>
         </div>
-
       </div>
     </main>
   );

@@ -4,12 +4,15 @@ import {
   clearValues,
   hasSavedValues,
   savePopulation,
-  saveContext, verifyCase, revokeVerification,
+  saveContext,
+  verifyCase,
+  revokeVerification,
   saveValues,
   useTegSession,
 } from "@/lib/teg-store";
 import {
   getParamMeta,
+  INTERVAL_NOTE,
   PLAUSIBLE,
   validateAll,
   type Population,
@@ -27,15 +30,17 @@ import { AlertTriangle } from "lucide-react";
 export const Route = createFileRoute("/review")({
   head: () => ({
     meta: [
-      { property: "og:title", content: "Review values — TEG 6s Advisor" },
-      { property: "og:description", content: "Verify completed readings and clinical context before interpretation." },
+      { property: "og:title", content: "Review values — Clot Clarity" },
+      {
+        property: "og:description",
+        content: "Verify completed readings and clinical context before interpretation.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { title: "Review values — TEG 6s Advisor" },
+      { title: "Review values — Clot Clarity" },
       {
         name: "description",
-        content:
-          "Review and confirm the TEG 6s parameters before generating a recommendation.",
+        content: "Verify completed original TEG 6s readings and clinical context.",
       },
     ],
   }),
@@ -44,7 +49,7 @@ export const Route = createFileRoute("/review")({
 
 function Review() {
   const navigate = useNavigate();
-  const { values, population, hasValues, context, verified } = useTegSession();
+  const { values, population, hasValues, context, verified, storageWarning } = useTegSession();
 
   useEffect(() => {
     // Route guard: if the user landed here directly without going through
@@ -108,17 +113,22 @@ function Review() {
         </div>
         <h1 className="text-2xl font-bold tracking-tight">Confirm values</h1>
         <DisclaimerBanner compact />
+        {storageWarning && (
+          <p role="alert" className="text-sm text-warning">
+            Browser storage is unavailable. This case is held in memory only; closing or reloading
+            may lose edits or restore older saved data. Clear the browser’s site data before reuse
+            if deletion is blocked.
+          </p>
+        )}
 
         <p className="text-sm text-muted-foreground">
-          Check every value against the TEG 6s display. Edit any that are wrong
-          or missing. Leave a field blank if the parameter is unavailable.
+          Check every value against the TEG 6s display. Edit any that are wrong or missing. Leave a
+          field blank if the parameter is unavailable.
         </p>
 
         <label
           className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
-            population === "pregnant"
-              ? "border-primary/60 bg-primary/10"
-              : "border-border bg-card"
+            population === "pregnant" ? "border-primary/60 bg-primary/10" : "border-border bg-card"
           }`}
         >
           <Checkbox
@@ -127,23 +137,95 @@ function Review() {
             className="mt-0.5"
           />
           <div className="text-sm">
-            <div className="font-semibold text-foreground">
-              Patient is pregnant
-            </div>
+            <div className="font-semibold text-foreground">Patient is pregnant</div>
             <div className="text-xs text-muted-foreground">
-              No validated local obstetric algorithm configured. Findings and lab correlation only; no automated product or dose decisions.
+              No validated local obstetric algorithm configured. Findings and lab correlation only;
+              no automated product or dose decisions.
             </div>
           </div>
         </label>
 
         <section className="space-y-4 border-y border-border py-4">
           <h2 className="font-semibold">Clinical context</h2>
-          <label className="flex items-center gap-3"><Checkbox checked={context.adultConfirmed} onCheckedChange={c => saveContext({ ...context, adultConfirmed: c === true })} />Adult patient (18 years or older)</label>
-          <label className="flex items-start gap-3"><Checkbox checked={context.cartridgeConfirmed} onCheckedChange={c => saveContext({ ...context, cartridgeConfirmed: c === true })} />Original TEG 6s Global Hemostasis cartridge: CK, CKH, CRT, CFF only (not HN or other cartridges)</label>
-          <fieldset className="space-y-2"><legend className="font-medium">Bleeding context</legend>{([['active', 'Active significant bleeding'], ['not-bleeding', 'Not bleeding'], ['unknown', 'Unknown']] as const).map(([v, label]) => <label key={v} className="flex items-center gap-2"><input type="radio" name="bleeding" checked={context.bleeding === v} onChange={() => saveContext({ ...context, bleeding: v })} />{label}</label>)}</fieldset>
-          <fieldset className="space-y-2"><legend className="font-medium">Indication</legend>{([['other', 'Other / not established'], ['trauma', 'Trauma'], ['pph', 'Confirmed postpartum haemorrhage (not pregnancy alone)']] as const).map(([v, label]) => <label key={v} className="flex items-center gap-2"><input type="radio" name="indication" checked={context.indication === v} onChange={() => saveContext({ ...context, indication: v, withinThreeHours: 'unknown' })} />{label}</label>)}</fieldset>
-          {context.indication !== 'other' && <fieldset className="space-y-2"><legend className="font-medium">Within 3 hours of {context.indication === 'trauma' ? 'injury' : 'birth'}?</legend>{(['yes', 'no', 'unknown'] as const).map(v => <label key={v} className="flex items-center gap-2"><input type="radio" name="timing" checked={context.withinThreeHours === v} onChange={() => saveContext({ ...context, withinThreeHours: v })} />{v}</label>)}</fieldset>}
-          <p className="text-sm text-warning">Major haemorrhage: escalate and activate the local protocol immediately. Do not wait for complete TEG results or TXA assessment by TEG.</p>
+          <label className="flex items-center gap-3">
+            <Checkbox
+              checked={context.adultConfirmed}
+              onCheckedChange={(c) => saveContext({ ...context, adultConfirmed: c === true })}
+            />
+            Adult patient (18 years or older)
+          </label>
+          <label className="flex items-start gap-3">
+            <Checkbox
+              checked={context.cartridgeConfirmed}
+              onCheckedChange={(c) => saveContext({ ...context, cartridgeConfirmed: c === true })}
+            />
+            Original TEG 6s Global Hemostasis cartridge: CK, CKH, CRT, CFF only (not HN or other
+            cartridges)
+          </label>
+          <fieldset className="space-y-2">
+            <legend className="font-medium">Bleeding context</legend>
+            {(
+              [
+                ["active", "Active significant bleeding"],
+                ["not-bleeding", "Not bleeding"],
+                ["unknown", "Unknown"],
+              ] as const
+            ).map(([v, label]) => (
+              <label key={v} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="bleeding"
+                  checked={context.bleeding === v}
+                  onChange={() => saveContext({ ...context, bleeding: v })}
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
+          <fieldset className="space-y-2">
+            <legend className="font-medium">Indication</legend>
+            {(
+              [
+                ["other", "Other / not established"],
+                ["trauma", "Trauma"],
+                ["pph", "Confirmed postpartum haemorrhage (not pregnancy alone)"],
+              ] as const
+            ).map(([v, label]) => (
+              <label key={v} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="indication"
+                  checked={context.indication === v}
+                  onChange={() =>
+                    saveContext({ ...context, indication: v, withinThreeHours: "unknown" })
+                  }
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
+          {context.indication !== "other" && (
+            <fieldset className="space-y-2">
+              <legend className="font-medium">
+                Within 3 hours of {context.indication === "trauma" ? "injury" : "birth"}?
+              </legend>
+              {(["yes", "no", "unknown"] as const).map((v) => (
+                <label key={v} className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="timing"
+                    checked={context.withinThreeHours === v}
+                    onChange={() => saveContext({ ...context, withinThreeHours: v })}
+                  />
+                  {v}
+                </label>
+              ))}
+            </fieldset>
+          )}
+          <p className="text-sm text-warning">
+            Major haemorrhage: escalate and activate the local protocol immediately. Do not wait for
+            complete TEG results or TXA assessment by TEG.
+          </p>
         </section>
 
         {(errorCount > 0 || warningCount > 0) && (
@@ -158,7 +240,8 @@ function Review() {
             <AlertTriangle className="h-4 w-4" />
             {errorCount > 0 && (
               <AlertTitle>
-                {errorCount} value{errorCount === 1 ? "" : "s"} likely incorrect — fix before continuing.
+                {errorCount} value{errorCount === 1 ? "" : "s"} likely incorrect — fix before
+                continuing.
               </AlertTitle>
             )}
             {warningCount > 0 && (
@@ -169,6 +252,7 @@ function Review() {
           </Alert>
         )}
 
+        <p className="text-xs text-muted-foreground">{INTERVAL_NOTE}</p>
         <div className="space-y-4">
           {(Object.keys(meta) as (keyof TegValues)[]).map((k) => {
             const m = meta[k];
@@ -184,15 +268,15 @@ function Review() {
                 <label className="flex flex-wrap items-baseline justify-between gap-3">
                   <div>
                     <div className="font-semibold">{m.label}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {m.description}
-                    </div>
+                    <div className="text-xs text-muted-foreground">{m.description}</div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      Manufacturer interval{population === "pregnant" ? " (not obstetric)" : ""}: {m.normal} {m.unit} · Plausible: {PLAUSIBLE[k][0]}–{PLAUSIBLE[k][1]} {m.unit}
+                      Manufacturer interval{population === "pregnant" ? " (not obstetric)" : ""}:{" "}
+                      {m.normal} {m.unit} · Plausible: {PLAUSIBLE[k][0]}–{PLAUSIBLE[k][1]} {m.unit}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Input
+                      aria-label={m.label}
                       type="number"
                       inputMode="decimal"
                       step="0.1"
@@ -203,9 +287,7 @@ function Review() {
                       className="w-24 text-right"
                       placeholder="—"
                     />
-                    <span className="w-8 text-xs text-muted-foreground">
-                      {m.unit}
-                    </span>
+                    <span className="w-8 text-xs text-muted-foreground">{m.unit}</span>
                   </div>
                 </label>
                 {issue && (
@@ -223,11 +305,28 @@ function Review() {
         </div>
 
         <label className="flex items-start gap-3 border-t border-border pt-4">
-          <Checkbox checked={verified !== null} disabled={errorCount > 0 || !context.adultConfirmed || !context.cartridgeConfirmed || Object.values(values).every(v => v === null)} onCheckedChange={c => c === true ? verifyCase() : revokeVerification()} />
-          <span>I verified these exact completed values, channel labels, units and clinical context against the display. Missing readings are unavailable, not normal. I reviewed any warnings.</span>
+          <Checkbox
+            checked={verified !== null}
+            disabled={
+              errorCount > 0 ||
+              !context.adultConfirmed ||
+              !context.cartridgeConfirmed ||
+              Object.values(values).every((v) => v === null)
+            }
+            onCheckedChange={(c) => (c === true ? verifyCase() : revokeVerification())}
+          />
+          <span>
+            I verified these exact completed values, channel labels, units and clinical context
+            against the display. Missing readings are unavailable, not normal. I reviewed any
+            warnings.
+          </span>
         </label>
         <div className="flex flex-col gap-2">
-          <Button onClick={submit} disabled={errorCount > 0 || !verified || Object.values(values).every(v => v === null)} className="w-full">
+          <Button
+            onClick={submit}
+            disabled={errorCount > 0 || !verified || Object.values(values).every((v) => v === null)}
+            className="w-full"
+          >
             {errorCount > 0
               ? "Fix flagged values to continue"
               : warningCount > 0
