@@ -11,7 +11,8 @@ The prepared patch was already committed when these checks started; no dependenc
 - `bun audit`: no vulnerabilities across 596 packages.
 - Production dependency scan: no known vulnerabilities in 53 production dependencies.
 - Hosted build status: succeeded, in sync with candidate commit; run `br_cd4baa96-6fa3-4cf1-8bf8-c5de2034c79f`, finished `2026-11-16T11:47:36Z`. No structured build diagnostics. This is hosted production-compilation evidence, not a new manual build or a production publication.
-- Local browser check: home, rules and algorithm returned HTTP 200; all three diagrams rendered; empty review/results sessions redirected to capture; disclaimer → manual entry → review → recommendation succeeded; review and results retained synthetic values after reload. No browser console errors or uncaught errors. Screenshots inspected.
+- Local browser check repeated at desktop (1280 × 1800) and phone (390 × 844) sizes: home, rules and algorithm returned HTTP 200; all three diagrams rendered; empty review/results sessions redirected to capture; disclaimer → manual entry → review → recommendation succeeded; review and results retained synthetic values after reload. No browser console errors or uncaught errors. Screenshots inspected.
+- Current automatic build log: `build OK` at `2026-11-16T14:28:19Z`; repeated TypeScript check and 54-test suite passed.
 - Anonymous hosted-preview check: blocked. Home, rules and algorithm redirected to `https://lovable.dev/auth-bridge`; HTTP 200 belonged to the access screen, not the app. Hosted app rendering without errors therefore remains unverified. No access controls were changed or bypassed.
 - No real case information, camera images, AI calls, credentials, migrations, production writes or publication were used.
 
